@@ -10,11 +10,14 @@ const rpc_url: string = process.env.RPC_URL!;
 
 // Make this old starknet.js version compatible with the new tx format
 export class RetrofitRpcProvider extends RpcProvider {
-  protected fetchEndpoint<T extends keyof RPC.Methods>(method: T, request?: RPC.Methods[T]["REQUEST"] | undefined): Promise<RPC.Methods[T]["RESPONSE"]> {
+  protected fetchEndpoint<T extends keyof RPC.Methods>(
+    method: T,
+    request?: RPC.Methods[T]["REQUEST"] | undefined,
+  ): Promise<RPC.Methods[T]["RESPONSE"]> {
     if (method !== "starknet_addInvokeTransaction") {
       return super.fetchEndpoint(method, request);
     }
-    const original = request!
+    const original = request!;
     const newRequest = {
       type: "INVOKE",
       max_fee: original[2],
@@ -23,7 +26,7 @@ export class RetrofitRpcProvider extends RpcProvider {
       contract_address: original[0].contract_address,
       entry_point_selector: original[0].entry_point_selector,
       calldata: original[0].calldata,
-    }
+    };
     return super.fetchEndpoint(method, [newRequest]);
   }
 }
@@ -42,5 +45,5 @@ const calls: Array<Call> = [
 ];
 
 const nonce = await deployer.getNonce();
-const executionResult = await deployer.execute(calls, undefined, { nonce, maxFee: 10000000000000000n },);
+const executionResult = await deployer.execute(calls, undefined, { nonce, maxFee: 10000000000000000n });
 console.log(`transaction_hash: ${executionResult.transaction_hash}`);

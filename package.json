@@ -6,7 +6,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "starknet": "v4.6.0"
+    "starknet": "v4.6.0",
+    "starknet5": "npm:starknet@latest"
+  },
+  "scripts": {
+    "test-all": "bun mocha tests/*.test.ts",
+    "format": "bun prettier . --write"
   },
   "devDependencies": {
     "@types/bun": "latest",
