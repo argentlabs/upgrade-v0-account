@@ -10,9 +10,12 @@ import {
   Abi,
   ProviderInterface,
   AccountInterface,
+  uint256,
 } from "starknet5";
 
 export const provider = new RpcProvider({ nodeUrl: process.env.RPC_URL as string });
+export const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1");
+export const ethAddress = "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 
 export async function deployOldAccount(oldArgentAccountClassHash: string, proxyClassHash: string, version?: string) {
   const owner = new KeyPair(process.env.PRIVATE_KEY);
@@ -29,8 +32,6 @@ export async function deployOldAccount(oldArgentAccountClassHash: string, proxyC
 
   const account = new Account(provider, contractAddress, owner, "0");
 
-  const deployer = new Account(provider, process.env.ADDRESS as string, process.env.PRIVATE_KEY as string, "1");
-
   const { transaction_hash } = await deployer.execute(
     deployer.buildUDCContractPayload({
       classHash: proxyClassHash,
@@ -42,10 +43,29 @@ export async function deployOldAccount(oldArgentAccountClassHash: string, proxyC
 
   await provider.waitForTransaction(transaction_hash);
 
+  await sendEth(contractAddress);
+
   console.log(`Deployed account at ${contractAddress} version ${version}`);
   const accountContract = await loadContract(account.address);
   accountContract.connect(account);
   return { account, accountContract, owner };
+}
+
+export async function sendEth(contractAddress: string) {
+  console.log(`Sending eth to ${contractAddress}....`);
+  const { transaction_hash } = await deployer.execute({
+    contractAddress: ethAddress,
+    entrypoint: "transfer",
+    calldata: CallData.compile({ recipient: contractAddress, amount: uint256.bnToUint256(1000000000000000n) }),
+  });
+  await provider.waitForTransaction(transaction_hash);
+  console.log(`ETH transfer successful ${contractAddress}`);
+}
+
+export async function getEthBalance(contractAddress: string): Promise<bigint> {
+  const ethContract = await loadContract(ethAddress);
+  const balance = await ethContract.balanceOf(contractAddress);
+  return balance;
 }
 
 class ContractWithClassHash extends Contract {
@@ -84,10 +104,5 @@ export class KeyPair extends Signer {
 
   public get publicKey() {
     return BigInt(ec.starkCurve.getStarkKey(this.pk));
-  }
-
-  public signHash(messageHash: string) {
-    const { r, s } = ec.starkCurve.sign(messageHash, this.pk);
-    return [r.toString(), s.toString()];
   }
 }

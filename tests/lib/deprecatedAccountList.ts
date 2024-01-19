@@ -21,4 +21,4 @@ export const deprecatedAccountList = [
   },
 ];
 
-export const ACCOUNT_VERSION_0_2_3_1 = "0x033434ad846cdd5f23eb73ff09fe6fddd568284a0fb7d1be20ee482f044dabe2";
+export const latestAccountClassHash_V_0_2_3_1 = "0x033434ad846cdd5f23eb73ff09fe6fddd568284a0fb7d1be20ee482f044dabe2";

@@ -6,4 +6,4 @@ chai.should();
 
 export * from "./deprecatedAccountList";
 export * from "./account";
-// export * from "./upgrade";
+export * from "./upgrade";
