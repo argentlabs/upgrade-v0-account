@@ -1,7 +1,10 @@
-# upgrade-script
+## What?
+This project helps to upgrade deprecated Argent accounts, v0.2.2 or earlier, to a version that can be used in the extension.
+NOTE: this only works on mainnet, V0 transactions have been disabled on the other networks
 
-To install dependencies:
-Intall bun https://bun.sh/docs/installation
+## How?
+
+Install bun https://bun.sh/docs/installation
 
 Run
 
@@ -19,4 +22,3 @@ bun run upgrade
 
 It will output a transaction hash. You can go to your block explorer to see if the transacction succeeds
 
-NOTE: this script only works on mainnet, V0 transactions have been disabled on the other networks
