@@ -5,5 +5,7 @@ chai.use(chaiAsPromised);
 chai.should();
 
 export * from "./deprecatedAccountList";
-export * from "./setup";
+export * from "./utils";
+export * from "./deployOldAccount";
+export * from "./upgradeSnJs4";
 export * from "./upgrade";

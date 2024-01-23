@@ -1,56 +1,43 @@
-// in package.json use "starknet": "v4.6.0" . it's the last one compatible with tx V0
-import { Call, Account, RpcProvider, ec } from "starknet";
-import { RPC } from "starknet/dist/types/api";
-import { latestAccountClassHash_V_0_2_3_1, getEthBalance } from "./";
+import { Account, Contract, num } from "starknet";
+import { getEthBalance, upgradeOldContractSnJs4, provider, loadContract, KeyPair, v0_2_2_implementation } from ".";
 
-const rpc_url: string = process.env.RPC_URL!;
-
-// Make this old starknet.js version compatible with the new tx format
-export class RetrofitRpcProvider extends RpcProvider {
-  protected fetchEndpoint<T extends keyof RPC.Methods>(
-    method: T,
-    request?: RPC.Methods[T]["REQUEST"] | undefined,
-  ): Promise<RPC.Methods[T]["RESPONSE"]> {
-    if (method !== "starknet_addInvokeTransaction") {
-      return super.fetchEndpoint(method, request);
-    }
-    const original = request!;
-    const newRequest = {
-      type: "INVOKE",
-      max_fee: original[2],
-      version: "0x0",
-      signature: original[1],
-      contract_address: original[0].contract_address,
-      entry_point_selector: original[0].entry_point_selector,
-      calldata: original[0].calldata,
-    };
-    return super.fetchEndpoint(method, [newRequest]);
+export async function upgradeOldContract(accountAddress: string = process.env.ADDRESS!) {
+  if (process.env.ADDRESS === undefined || process.env.PRIVATE_KEY === undefined) {
+    console.error("ADDRESS and PRIVATE_KEY variables are not set in the .env file");
   }
+  console.log("upgrading old account:", accountAddress);
+  const privateKey: string = process.env.PRIVATE_KEY!;
+  const keyPair = new KeyPair(privateKey);
+  const accountToUpgrade = new Account(provider, accountAddress, privateKey);
+  const proxyContract = await loadContract(accountAddress);
+  const proxyClassHash = await accountToUpgrade.getClassHashAt(accountAddress);
+  console.log("proxyClassHash", proxyClassHash);
+
+  const implementationClassHash = num.toHexString((await proxyContract.get_implementation()).implementation);
+  console.log("implementationClassHash", implementationClassHash);
+
+  if (implementationClassHash !== v0_2_2_implementation) {
+    throw new Error("Implementation doesn't match");
+  }
+
+  const { abi } = await provider.getClassByHash(implementationClassHash);
+  const accountContract = new Contract(abi, accountAddress, provider);
+
+  const currentSigner = num.toHexString((await accountContract.get_signer()).signer);
+  if (num.toBigInt(currentSigner) !== keyPair.publicKey) {
+    throw new Error("Signer doesn't match private key");
+  }
+
+  const currentGuardian = num.toHexString((await accountContract.get_guardian()).guardian);
+  if (currentGuardian !== "0x0") {
+    throw new Error("Account has a guardian, can't upgrade");
+  }
+
+  const maxFee = await getEthBalance(accountToUpgrade.address);
+  console.log("maxFee", maxFee);
+  const nonce = await accountToUpgrade.getNonce();
+  console.log("nonce", nonce);
+  const upgradeTransactionHash = await upgradeOldContractSnJs4(accountAddress, privateKey, nonce, maxFee);
+  console.log(`upgrade transaction_hash: ${upgradeTransactionHash}`);
+  await provider.waitForTransaction(upgradeTransactionHash);
 }
-
-export async function upgradeOldContract(address: string, privateKey: string) {
-  const retroFitProvider = new RetrofitRpcProvider({ nodeUrl: rpc_url });
-  const deployer = new Account(
-    retroFitProvider,
-    address,
-    ec.getKeyPair(privateKey),
-  );
-  deployer["provider"] = retroFitProvider; // actually needed to use the RPC
-
-  const maxFee = await getEthBalance(deployer.address);
-
-  const calls: Array<Call> = [
-    // upgrade to v0.2.3.1
-    {
-      contractAddress: deployer.address,
-      calldata: [latestAccountClassHash_V_0_2_3_1],
-      entrypoint: "upgrade",
-    },
-  ];
-
-  const nonce = await deployer.getNonce();
-  const executionResult = await deployer.execute(calls, undefined, { nonce, maxFee: maxFee });
-  console.log(`transaction_hash: ${executionResult.transaction_hash}`);
-}
-
-
