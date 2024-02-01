@@ -35,7 +35,7 @@ export async function upgradeOldContract(accountAddress: string = process.env.AD
 
   const maxFee = await getEthBalance(accountToUpgrade.address);
   console.log("maxFee", maxFee);
-  const nonce = await accountToUpgrade.getNonce();
+  const nonce = (await accountContract.get_nonce()).nonce;
   console.log("nonce", nonce);
   const upgradeTransactionHash = await upgradeOldContractSnJs4(accountAddress, privateKey, nonce, maxFee);
   console.log(`upgrade transaction_hash: ${upgradeTransactionHash}`);
