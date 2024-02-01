@@ -33,8 +33,14 @@ export async function upgradeOldContract(accountAddress: string = process.env.AD
     throw new Error("Account has a guardian, can't upgrade");
   }
 
-  const maxFee = await getEthBalance(accountToUpgrade.address);
-  console.log("maxFee", maxFee);
+  const ethBalance = await getEthBalance(accountToUpgrade.address);
+  if (ethBalance == 0n) {
+    throw new Error("Account has no funds, please transfer some ETH to it");
+  }
+  const MAX_ALLOWED_FEE = 3000000000000000n; // 0.003 ETH
+  const maxFee = ethBalance < MAX_ALLOWED_FEE ? ethBalance : MAX_ALLOWED_FEE;
+  console.log("maxFee", ethBalance, "WEI");
+
   const nonce = (await accountContract.get_nonce()).nonce;
   console.log("nonce", nonce);
   const upgradeTransactionHash = await upgradeOldContractSnJs4(accountAddress, privateKey, nonce, maxFee);
