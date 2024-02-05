@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Upgrade Deprecated Account",
-  description: "Upgrade deprecated Srgent accounts",
+  description: "Upgrade deprecated Argent accounts",
 };
 
 export default function RootLayout({
