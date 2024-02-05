@@ -56,7 +56,7 @@ const UpgradeForm = () => {
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg font-medium">Address</FormLabel>
+                  <FormLabel className="text-lg font-medium">Account Address</FormLabel>
                   <FormControl>
                     <Input placeholder="wallet address" {...field} />
                   </FormControl>
@@ -85,7 +85,7 @@ const UpgradeForm = () => {
           </div>
           <div className="flex justify-center">
             <Button type="submit" className="mt-4">
-              Uprgade Account
+              Upgrade Account
             </Button>
           </div>
         </form>
