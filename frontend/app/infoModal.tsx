@@ -34,7 +34,7 @@ export const InfoModal: FC<ModalProps> = ({ isOpen, setIsOpen }) => {
               setIsOpen(false);
             }}
           >
-            Done
+            Ok
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
