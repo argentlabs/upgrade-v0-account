@@ -30,15 +30,20 @@ const UpgradeForm = () => {
   });
 
   const upgradeButtonSubmit = async (values: z.infer<typeof formSchema>) => {
-    toast.promise(upgradeOldContract(values.address, values.privateKey), {
-      loading: `Upgrading account: ${values.address.slice(0, 4) + "..." + values.address.slice(-4)}`,
-      success: (transactionHash) => (
-        <a href={`https://starkscan.co/tx/${transactionHash}`} target="_blank" rel="noopener noreferrer">
-          Transaction hash: {transactionHash.slice(0, 4) + "..." + transactionHash.slice(-4)}
-        </a>
-      ),
-      error: (err) => <p className="text-sm">${err.message}</p>,
-    });
+    toast.dismiss();
+    toast.promise(
+      upgradeOldContract(values.address, values.privateKey),
+      {
+        loading: `Upgrading account: ${values.address.slice(0, 5) + "..." + values.address.slice(-4)}`,
+        success: (transactionHash) => (
+          <a href={`https://starkscan.co/tx/${transactionHash}`} target="_blank" rel="noopener noreferrer">
+            Transaction subitted! Click here to view the transaction.
+          </a>
+        ),
+        error: (err) => <p className="text-sm">${err.message}</p>,
+      },
+      { duration: Infinity },
+    );
   };
 
   return (
