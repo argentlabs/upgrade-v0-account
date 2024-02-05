@@ -14,8 +14,8 @@ import { InfoModal } from "./infoModal";
 import { upgradeOldContract } from "@/services";
 
 const formSchema = z.object({
-  address: z.string().startsWith("0x").length(66),
-  privateKey: z.string().startsWith("0x").length(66),
+  address: z.string().startsWith("0x").min(50).max(80),
+  privateKey: z.string().startsWith("0x").min(50).max(80),
 });
 
 const UpgradeForm = () => {
@@ -31,13 +31,13 @@ const UpgradeForm = () => {
 
   const upgradeButtonSubmit = async (values: z.infer<typeof formSchema>) => {
     toast.promise(upgradeOldContract(values.address, values.privateKey), {
-      loading: `upgrading old account: ${values.address}`,
+      loading: `Upgrading account: ${values.address.slice(0, 4) + "..." + values.address.slice(-4)}`,
       success: (transactionHash) => (
         <a href={`https://starkscan.co/tx/${transactionHash}`} target="_blank" rel="noopener noreferrer">
-          Transaction hash: {transactionHash}
+          Transaction hash: {transactionHash.slice(0, 4) + "..." + transactionHash.slice(-4)}
         </a>
       ),
-      error: (err) => <b>${err.message}</b>,
+      error: (err) => <p className="text-sm">${err.message}</p>,
     });
   };
 
