@@ -1,6 +1,16 @@
-import { Account, RpcProvider, Signer, encode, ec, CallData, Contract, uint256, num } from "starknet";
+import { Account, RpcProvider, Signer, encode, ec, CallData, Contract, uint256, num, RPC } from "starknet";
+import dotenv from "dotenv";
+dotenv.config({ override: true });
 
-export const provider = new RpcProvider({ nodeUrl: process.env.RPC_URL as string });
+class OpenRpcProvider extends RpcProvider {
+  fetchEndpoint<T extends keyof RPC.Methods>(
+    method: T,
+    params?: RPC.Methods[T]["params"],
+  ): Promise<RPC.Methods[T]["result"]> {
+    return super.fetchEndpoint(method, params);
+  }
+}
+export const provider = new OpenRpcProvider({ nodeUrl: process.env.RPC_URL as string });
 export const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
 export const ethAddress = "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 

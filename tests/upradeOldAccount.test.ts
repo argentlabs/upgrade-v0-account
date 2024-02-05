@@ -1,12 +1,46 @@
-import { deprecatedAccountList, deployOldAccount, sendEth, upgradeOldContract } from "./lib";
+import {
+  deployOldAccount_v0_2_2,
+  v0_2_2_proxyClassHash,
+  v0_2_2_implementationClassHash,
+  deployOldAccount_v0_2_0_proxy,
+  v0_2_0_proxyClassHash,
+  v0_2_1_implementationAddress,
+  v0_2_1_implementationClassHash,
+  v0_2_0_implementationAddress,
+  v0_2_0_implementationClassHash,
+} from "./lib";
 
 describe("ArgentAccount", function () {
-  for (const { version, implementation, proxy } of deprecatedAccountList) {
-    it(`Upgrade from ${version}`, async function () {
-      // deploy account
-      // await deployOldAccount(implementation, proxy, version, fundAmount, 5000000000000000n);
-      // try to upgrade
-      // await upgradeOldContract("0x2bdc67e5e9585a0881d850145186a15df63ea8c243b6058fe0cd446d3fe2e44");
-    });
-  }
+  const salt = 5656n;
+
+  // it(`Deploy 0.2.2 account`, async function () {
+  //   await deployOldAccount_v0_2_2(
+  //     v0_2_2_proxyClassHash,
+  //     v0_2_2_implementationClassHash,
+  //     "0.2.2",
+  //     200000000000000n,
+  //     salt,
+  //   );
+  // });
+
+  // it(`Deploy 0.2.1 account`, async function () {
+  //   await deployOldAccount_v0_2_0_proxy(
+  //     v0_2_0_proxyClassHash, // in prod  0.2.1 accounts used the 0.2.0 proxy
+  //     v0_2_1_implementationAddress,
+  //     v0_2_1_implementationClassHash,
+  //     "0.2.1",
+  //     200000000000000n,
+  //     salt,
+  //   );
+  // });
+  // it(`Deploy 0.2.0 account`, async function () {
+  //   await deployOldAccount_v0_2_0_proxy(
+  //     v0_2_0_proxyClassHash,
+  //     v0_2_0_implementationAddress,
+  //     v0_2_0_implementationClassHash,
+  //     "0.2.0",
+  //     200000000000000n,
+  //     salt,
+  //   );
+  // });
 });

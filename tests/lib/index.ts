@@ -7,5 +7,4 @@ chai.should();
 export * from "./deprecatedAccountList";
 export * from "./utils";
 export * from "./deployOldAccount";
-export * from "./upgradeSnJs4";
 export * from "./upgrade";
