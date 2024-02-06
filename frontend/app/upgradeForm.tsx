@@ -63,7 +63,7 @@ const UpgradeForm = () => {
                 <FormItem>
                   <FormLabel className="text-lg font-medium">Account Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="wallet address" {...field} />
+                    <Input placeholder="account address" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
