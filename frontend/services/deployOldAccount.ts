@@ -1,5 +1,5 @@
 import { hash, Account, CallData, num, Call } from "starknet";
-import { getEthBalance, sendEth, KeyPair, loadContract, provider, deployer } from ".";
+import { getEthBalance, sendEth, KeyPair, loadContract, provider } from ".";
 
 export async function deployOldAccount_v0_2_2(
   proxyClassHash: string,
@@ -8,7 +8,8 @@ export async function deployOldAccount_v0_2_2(
   fundAmount: bigint,
   salt: bigint,
 ) {
-  const owner = new KeyPair(process.env.PRIVATE_KEY);
+  const owner = new KeyPair(process.env.PRIVATE_KEY!);
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
 
   const constructorCalldata = CallData.compile({
     implementation: oldArgentAccountClassHash,
@@ -48,7 +49,8 @@ export async function deployOldAccount_v0_2_0_proxy(
   fundAmount: bigint,
   salt: bigint,
 ) {
-  const owner = new KeyPair(process.env.PRIVATE_KEY);
+  const owner = new KeyPair(process.env.PRIVATE_KEY!);
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
   const retrievedClassHash = await provider.getClassHashAt(oldArgentAccountImplAddress);
   if (retrievedClassHash !== oldArgentAccountClassHash) {
     throw new Error("Implementation doesn't match");

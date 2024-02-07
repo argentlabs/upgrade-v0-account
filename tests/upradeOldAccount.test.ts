@@ -8,7 +8,7 @@ import {
   v0_2_1_implementationClassHash,
   v0_2_0_implementationAddress,
   v0_2_0_implementationClassHash,
-} from "./lib";
+} from "../frontend/services";
 
 describe("ArgentAccount", function () {
   const salt = 5656n;

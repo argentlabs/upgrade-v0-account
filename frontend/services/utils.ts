@@ -10,12 +10,13 @@ class OpenRpcProvider extends RpcProvider {
     return super.fetchEndpoint(method, params);
   }
 }
-export const provider = new OpenRpcProvider({ nodeUrl: process.env.RPC_URL as string });
-export const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
+export const provider = new OpenRpcProvider({ nodeUrl: "https://starknet-mainnet.public.blastapi.io" });
+
 export const ethAddress = "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 
 export async function sendEth(contractAddress: string, amount: bigint) {
   console.log(`Sending eth to ${contractAddress}....`);
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
   const { transaction_hash } = await deployer.execute({
     contractAddress: ethAddress,
     entrypoint: "transfer",
@@ -47,7 +48,7 @@ export async function getEthContract() {
   return ethContract;
 }
 
-export async function loadContract(contractAddress: string, classHash?: string): Promise<Contract> {
+export async function loadContract(contractAddress: string): Promise<Contract> {
   const { abi } = await provider.getClassAt(contractAddress);
   if (!abi) {
     throw new Error("Error while getting ABI");

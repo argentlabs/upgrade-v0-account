@@ -12,16 +12,9 @@ import {
   latestAccountClassHash_V_0_2_3_1_classHash,
   latestAccountClassHash_V_0_2_3_1_address,
 } from ".";
-import dotenv from "dotenv";
-import { main } from "bun";
 
-dotenv.config({ override: true });
-export async function upgradeOldContract(accountAddress: string = process.env.ADDRESS!) {
-  if (process.env.ADDRESS === undefined || process.env.PRIVATE_KEY === undefined) {
-    console.error("ADDRESS and PRIVATE_KEY variables are not set in the .env file");
-  }
+export async function upgradeOldContract(accountAddress: string, privateKey: string): Promise<string> {
   console.log("upgrading old account:", accountAddress);
-  const privateKey: string = process.env.PRIVATE_KEY!;
   const keyPair = new KeyPair(privateKey);
   const accountToUpgrade = new Account(provider, accountAddress, privateKey);
   const proxyContract = await loadContract(accountAddress);
@@ -153,4 +146,5 @@ export async function upgradeOldContract(accountAddress: string = process.env.AD
   const submitResult = await provider.fetchEndpoint("starknet_addInvokeTransaction", [signedRequest] as any);
   console.log("upgrade transaction_hash", submitResult.transaction_hash);
   await provider.waitForTransaction(submitResult.transaction_hash);
+  return submitResult.transaction_hash;
 }
