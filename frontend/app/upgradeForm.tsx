@@ -47,8 +47,8 @@ const UpgradeForm = () => {
   };
 
   return (
-    <div className="flex-col w-full max-w-2xl ml-5 mr-5 ">
-      <h1 className="font-barlow font-medium text-xl mb-3">Please fill in the form below to upgrade your account:</h1>
+    <div className="flex-col w-full max-w-2xl px-5">
+      <h1 className="font-barlow font-medium text-xl mb-3">Upgrade your deprecated account to the latest one</h1>
       <Toaster position="bottom-right" reverseOrder={false} />
       <Form {...form}>
         <form
@@ -63,7 +63,7 @@ const UpgradeForm = () => {
                 <FormItem>
                   <FormLabel className="text-lg font-medium">Account Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="wallet address" {...field} />
+                    <Input placeholder="account address" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
