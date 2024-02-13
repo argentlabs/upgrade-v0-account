@@ -28,7 +28,7 @@ export async function sendEth(contractAddress: string, amount: bigint) {
 
 export async function getEthBalance(contractAddress: string): Promise<bigint> {
   const ethContract = await getEthContract();
-  return uint256.uint256ToBN((await ethContract.balanceOf(contractAddress)).balance);
+  return await ethContract.balanceOf(contractAddress);
 }
 
 let ethContract: Contract;
