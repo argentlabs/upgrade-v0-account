@@ -48,7 +48,6 @@ const UpgradeForm = () => {
 
   return (
     <div className="flex-col w-full max-w-2xl px-5">
-      <h1 className="font-barlow font-medium text-xl mb-3">Upgrade your deprecated account to the latest one</h1>
       <Toaster position="bottom-right" reverseOrder={false} />
       <Form {...form}>
         <form
