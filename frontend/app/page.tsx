@@ -17,7 +17,7 @@ export default function Home() {
           </h5>
           <h4 className="text-1xl font-bold text-gray-950 text-center py-2 mb-5">
             ⚠️ This is a rare exception that we ask you for your private key. As an alternative, you can also upgrade
-            with this open-source tool directly
+            with <a href="https://github.com/argentlabs/upgrade-v0-account">this open-source tool</a> directly
           </h4>
           <UpgradeForm />
         </div>
