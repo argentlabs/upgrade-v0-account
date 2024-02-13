@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Upgrade deprecated Argent accounts",
 };
 
-export const Navbar = () => (
+const Navbar = () => (
   <nav className=" text-white">
     <Image alt="Argent Logo" src="/argent-logo-colour.png" width={200} height={200} />
   </nav>
