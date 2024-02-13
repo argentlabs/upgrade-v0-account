@@ -15,13 +15,13 @@ export default function Home() {
           <h5 className="text-2xl  text-gray-950 text-center font-barlow">
             Upgrade your deprecated account to the latest one
           </h5>
-          <h4 className="text-1xl font-bold text-gray-950 text-center py-2 mb-5">
-            ⚠️ This is a rare exception that we ask you for your private key. As an alternative, you can also upgrade
-            with{" "}
+          <h4 className="text-1xl text-gray-950 text-center py-2 mb-5">
+            ⚠️ This is a rare exception that we provide a tool that asks for your private key. As an alternative you can
+            upgrade with our command-line tool or run this webapp locally. Everything is available{" "}
             <a href="https://github.com/argentlabs/upgrade-v0-account" className="text-blue-500">
-              this open-source tool
+              here
             </a>{" "}
-            directly
+            on our public git repo.
           </h4>
           <UpgradeForm />
         </div>
