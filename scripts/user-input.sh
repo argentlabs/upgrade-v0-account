@@ -12,4 +12,4 @@ echo "PRIVATE_KEY=$PRIVATE_KEY" >> .env
 echo "ADDRESS=$WALLET_ADDRESS" >> .env
 
 
-echo "Your details have been saved in a .env file."
+echo "Your details have been saved in a .env file. Please delete the file after the upgrade"

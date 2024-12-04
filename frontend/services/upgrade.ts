@@ -60,6 +60,8 @@ export async function upgradeOldContract(accountAddress: string, privateKey: str
   const accountContract = new Contract(abi, accountAddress, provider);
 
   const currentSigner = num.toHexString((await accountContract.get_signer()).signer);
+  console.log("currentSigner", num.toBigInt(currentSigner));
+  console.log("keyPair.pubKey", keyPair.publicKey);
   if (num.toBigInt(currentSigner) !== keyPair.publicKey) {
     throw new Error("Signer doesn't match private key");
   }
