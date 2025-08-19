@@ -1,4 +1,4 @@
-import { Account, Contract, num, hash, ec, constants, shortString } from "starknet";
+import { Account, Contract, num, hash, ec, constants, shortString, CallData } from "starknet";
 import {
   getEthBalance,
   provider,
@@ -12,6 +12,8 @@ import {
   latestAccountClassHash_V_0_2_3_1_classHash,
   latestAccountClassHash_V_0_2_3_1_address,
 } from ".";
+
+const meta_v0_contract_address = "0x3e21ab91c0899efc48b6d6ccd09b61fd37766e9b0c3cc968a7655632fbc253c";
 
 export async function upgradeOldContract(accountAddress: string, privateKey: string): Promise<string> {
   console.log("upgrading old account:", accountAddress);
@@ -39,6 +41,7 @@ export async function upgradeOldContract(accountAddress: string, privateKey: str
     throw new Error("Account is in 0.2.3.1, use argent X to upgrade to newer versions");
   } else if (implementationClassHash === v0_2_2_implementationClassHash) {
     if (!newProxy) {
+      // TODO: check why this is not supported
       throw new Error("version 0.2.2 with old proxy not supported");
     }
     console.log("upgrading from v0.2.2");
@@ -71,14 +74,6 @@ export async function upgradeOldContract(accountAddress: string, privateKey: str
     throw new Error("Account has a guardian, can't upgrade");
   }
 
-  const ethBalance = await getEthBalance(accountToUpgrade.address);
-  if (ethBalance == 0n) {
-    throw new Error("Account has no funds, please transfer some ETH to it");
-  }
-  const MAX_ALLOWED_FEE = 3000000000000000n; // 0.003 ETH
-  const maxFee = ethBalance < MAX_ALLOWED_FEE ? ethBalance : MAX_ALLOWED_FEE;
-  console.log("maxFee", maxFee, "WEI");
-
   const nonce = (await accountContract.get_nonce()).nonce;
   console.log("nonce", nonce);
 
@@ -97,7 +92,7 @@ export async function upgradeOldContract(accountAddress: string, privateKey: str
   };
   const unsignedRequest = {
     type: "INVOKE",
-    max_fee: num.toHexString(maxFee),
+    max_fee: num.toHexString(0),
     version: "0x0",
     contract_address: accountAddress,
     entry_point_selector: hash.getSelector("__execute__"),
@@ -123,30 +118,46 @@ export async function upgradeOldContract(accountAddress: string, privateKey: str
         accountAddress,
         callsHash,
         nonce,
-        maxFee,
+        0,
         0,
       ]);
     } else {
-      return hash.calculateTransactionHashCommon(
-        constants.TransactionHashPrefix.INVOKE,
+      // based on: https://github.com/starknet-io/starknet.js/blob/v5.24.3/src/utils/hash.ts#L68
+      // https://docs.starknet.io/resources/transactions-reference/#invoke_v0
+      const calldataHash = hash.computeHashOnElements(unsignedRequest.calldata);
+      return hash.computeHashOnElements([
+        shortString.encodeShortString("invoke"),
         unsignedRequest.version,
         unsignedRequest.contract_address,
         unsignedRequest.entry_point_selector,
-        unsignedRequest.calldata,
+        calldataHash,
         unsignedRequest.max_fee,
         await provider.getChainId(),
-      );
+      ]);
     }
   })();
   const signatureObj = ec.starkCurve.sign(msgHashToSign, privateKey) as any;
   const signatureArray = [num.toHexString(signatureObj["r"]), num.toHexString(signatureObj["s"])];
-  const signedRequest = {
-    ...unsignedRequest,
+
+  const metatx_calldata = CallData.compile({
+    target: unsignedRequest.contract_address,
+    entry_point_selector: unsignedRequest.entry_point_selector,
+    calldata: unsignedRequest.calldata,
     signature: signatureArray,
-  };
-  console.log("sending upgrade transaction...");
-  const submitResult = await provider.fetchEndpoint("starknet_addInvokeTransaction", [signedRequest] as any);
-  console.log("upgrade transaction_hash", submitResult.transaction_hash);
-  await provider.waitForTransaction(submitResult.transaction_hash);
-  return submitResult.transaction_hash;
+  });
+
+  console.log(
+    JSON.stringify(
+      [
+        {
+          contract_address: meta_v0_contract_address,
+          entry_point: "execute_meta_tx_v0",
+          calldata: metatx_calldata,
+        },
+      ],
+      null,
+      2,
+    ),
+  );
+  return "";
 }

@@ -3,6 +3,9 @@ export const latestAccountClassHash_V_0_2_3_1_classHash =
 export const latestAccountClassHash_V_0_2_3_1_address =
   "0x014297b4d1d302438fc420f7983e78541af79de07aa1f0c4b168d80dbf909d5e";
 
+export const v0_2_3_implementationClassHash = "0x01a7820094feaf82d53f53f214b81292d717e7bb9a92bb2488092cd306f3993f";
+export const v0_2_3_proxyClassHash = "0x025ec026985a3bf9d0cc1fe17326b245dfdc3ff89b8fde106542a3ea56c5a918";
+
 export const v0_2_2_implementationClassHash = "0x3e327de1c40540b98d05cbcb13552008e36f0ec8d61d46956d2f9752c294328";
 export const v0_2_2_proxyClassHash = "0x25ec026985a3bf9d0cc1fe17326b245dfdc3ff89b8fde106542a3ea56c5a918";
 
