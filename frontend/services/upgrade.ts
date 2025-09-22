@@ -1,16 +1,4 @@
-import {
-  Account,
-  Contract,
-  num,
-  hash,
-  ec,
-  constants,
-  shortString,
-  CallData,
-  stark,
-  UINT_256_MAX,
-  selector,
-} from "starknet";
+import { Account, Contract, num, hash, ec, constants, shortString, CallData, selector, v2hash, stark } from "starknet";
 import {
   provider,
   loadContract,
@@ -28,9 +16,11 @@ import {
   v0_3_1_implementationClassHash,
   v0_4_0_implementationClassHash,
   v0_3_0_implementationClassHash,
+  meta_v0_contract_address,
+  v0_2_3_1_implementationAddress,
+  v0_4_0_implementationAddress,
+  v0_3_0_implementationAddress,
 } from ".";
-
-const meta_v0_contract_address = "0x3e21ab91c0899efc48b6d6ccd09b61fd37766e9b0c3cc968a7655632fbc253c";
 
 enum OldAccountVersion {
   v0_2_0,
@@ -43,17 +33,24 @@ enum OldAccountVersion {
   v0_4_0,
 }
 
-enum ProxyType {
+export enum ProxyType {
   OldProxy,
   NewProxy,
   NoProxy,
 }
 
-export async function getAccountVersion(accountAddress: string): Promise<[OldAccountVersion, ProxyType, string]> {
-  const accountContract = await loadContract(accountAddress);
-  const accountClassHash = await provider.getClassHashAt(accountAddress);
+interface ILogger {
+  log(...args: any[]): void;
+}
 
-  console.log("account class hash", accountClassHash);
+export async function getAccountVersion(
+  logger: ILogger,
+  accountAddress: string,
+): Promise<[OldAccountVersion, ProxyType, string]> {
+  const accountContract = await loadContract(accountAddress);
+  const accountClassHash = num.cleanHex(await provider.getClassHashAt(accountAddress));
+
+  logger.log("account class hash", accountClassHash);
   if (accountClassHash === v0_4_0_implementationClassHash) {
     return [OldAccountVersion.v0_4_0, ProxyType.NoProxy, accountClassHash];
   }
@@ -65,14 +62,15 @@ export async function getAccountVersion(accountAddress: string): Promise<[OldAcc
     proxyType = ProxyType.NewProxy;
   } else if (accountClassHash === v0_2_0_proxyClassHash) {
     const implementationAddress = num.toHexString((await accountContract.get_implementation()).implementation);
-    console.log("implementationAddress", implementationAddress);
+    logger.log("implementationAddress", implementationAddress);
     implementationClassHash = await provider.getClassHashAt(implementationAddress);
     proxyType = ProxyType.OldProxy;
   } else {
-    throw new Error("Unrecognized proxy");
+    proxyType = ProxyType.NoProxy;
+    implementationClassHash = accountClassHash;
   }
 
-  console.log("implementationClassHash", implementationClassHash);
+  logger.log("implementationClassHash", implementationClassHash);
 
   implementationClassHash = num.cleanHex(implementationClassHash);
 
@@ -105,106 +103,141 @@ export async function getAccountVersion(accountAddress: string): Promise<[OldAcc
   return [version, proxyType, implementationClassHash];
 }
 
-export async function upgradeOldContract(accountAddress: string, privateKey: string): Promise<string> {
-  console.log("upgrading old account:", accountAddress);
-
-  const [accountVersion, accountProxyType, implementationClassHash] = await getAccountVersion(accountAddress);
-  console.log("account version", accountVersion);
-  console.log("proxy type", accountProxyType);
-
-  switch (accountVersion) {
-    case OldAccountVersion.v0_4_0:
-      throw new Error("Account is already at latest version");
-    case OldAccountVersion.v0_2_0:
-    case OldAccountVersion.v0_2_1:
-    case OldAccountVersion.v0_2_2:
-      return upgradeV0(accountAddress, privateKey, implementationClassHash, accountProxyType);
-    case OldAccountVersion.v0_2_3_0:
-    case OldAccountVersion.v0_2_3_1:
-      return upgradeV1(accountAddress, privateKey, implementationClassHash, accountProxyType);
-    case OldAccountVersion.v0_3_0:
-    case OldAccountVersion.v0_3_1:
-      const upgrade_0_4_call = await upgrade_from_0_3_1_efo(accountAddress, privateKey);
-      console.log(JSON.stringify([upgrade_0_4_call], null, 2));
-      return "";
-  }
-}
-
-async function upgradeV1(
+export async function verifyAccountOwnerAndGuardian(
+  logger: ILogger,
   accountAddress: string,
   privateKey: string,
+  accountVersion: OldAccountVersion,
   implementationClassHash: string,
-  proxyType: ProxyType,
-): Promise<string> {
-  if (proxyType !== ProxyType.NewProxy) {
-    throw new Error("v0.2.3.x must have new proxy");
-  }
-  const keyPair = new KeyPair(privateKey);
-  const accountToUpgrade = new Account(provider, accountAddress, privateKey);
-  const currentSigner = num.toHexString(
-    await provider.getStorageAt(accountAddress, selector.starknetKeccak("_signer")),
-  );
-  if (num.toBigInt(currentSigner) !== keyPair.publicKey) {
-    throw new Error("Signer doesn't match private key");
-  }
-  const currentGuardian = num.toHexString(
-    await provider.getStorageAt(accountAddress, selector.starknetKeccak("_guardian")),
-  );
-  if (currentGuardian !== "0x0") {
-    throw new Error("Account has a guardian, can't upgrade");
-  }
-
-  // FIXME: estimate v3 tx
-  const nonce = await provider.getNonceForAddress(accountAddress);
-  console.log("nonce", nonce);
-
-  const call = {
-    contractAddress: accountAddress,
-    entrypoint: "upgrade",
-    calldata: CallData.compile({ implementation: v0_3_1_implementationClassHash, calldata: [] }),
-  };
-
-  const submitResult = await accountToUpgrade.execute([call], undefined);
-  console.log("upgrade to v0.3.1 transaction hash", submitResult.transaction_hash);
-  await provider.waitForTransaction(submitResult.transaction_hash);
-  console.log("Upgraded to v0.3.1. Run again to upgrade to latest version");
-  return submitResult.transaction_hash;
-}
-
-async function upgradeV0(
-  accountAddress: string,
-  privateKey: string,
-  implementationClassHash: string,
-  proxyType: ProxyType,
-): Promise<string> {
-  if (proxyType === ProxyType.NoProxy) {
-    throw new Error("Old version must have a proxy");
-  }
-
+) {
   const keyPair = new KeyPair(privateKey);
   const { abi } = await provider.getClassByHash(implementationClassHash);
   const accountContract = new Contract(abi, accountAddress, provider);
 
-  const currentSigner = num.toHexString((await accountContract.get_signer()).signer);
-  console.log("currentSigner", num.toBigInt(currentSigner));
-  console.log("keyPair.pubKey", keyPair.publicKey);
+  logger.log("keyPair.pubKey", keyPair.publicKey);
+
+  let currentSigner: string;
+  let currentGuardian: string;
+
+  switch (accountVersion) {
+    case OldAccountVersion.v0_2_0:
+    case OldAccountVersion.v0_2_1:
+    case OldAccountVersion.v0_2_2:
+      currentSigner = num.toHexString((await accountContract.get_signer()).signer);
+      currentGuardian = num.toHexString((await accountContract.get_guardian()).guardian);
+      break;
+    case OldAccountVersion.v0_2_3_0:
+    case OldAccountVersion.v0_2_3_1:
+      currentSigner = num.toHexString(await provider.getStorageAt(accountAddress, selector.starknetKeccak("_signer")));
+      currentGuardian = num.toHexString(
+        await provider.getStorageAt(accountAddress, selector.starknetKeccak("_guardian")),
+      );
+      break;
+    case OldAccountVersion.v0_3_0:
+    case OldAccountVersion.v0_3_1:
+      currentSigner = num.toHexString(await accountContract.get_owner());
+      currentGuardian = num.toHexString(await accountContract.get_guardian());
+      break;
+    default:
+      throw new Error("Unsupported version for verification of owner and guardian");
+  }
+
+  logger.log("currentSigner", num.toBigInt(currentSigner));
+  logger.log("currentGuardian", num.toBigInt(currentGuardian));
   if (num.toBigInt(currentSigner) !== keyPair.publicKey) {
     throw new Error("Signer doesn't match private key");
   }
-
-  const currentGuardian = num.toHexString((await accountContract.get_guardian()).guardian);
   if (currentGuardian !== "0x0") {
     throw new Error("Account has a guardian, can't upgrade");
   }
+}
+
+export async function upgradeOldContract(
+  logger: ILogger,
+  accountAddress: string,
+  privateKey: string,
+): Promise<string | any> {
+  logger.log("upgrading old account:", accountAddress);
+
+  const [accountVersion, accountProxyType, implementationClassHash] = await getAccountVersion(logger, accountAddress);
+
+  if (accountVersion === OldAccountVersion.v0_4_0) {
+    return null;
+  }
+
+  logger.log("account version", OldAccountVersion[accountVersion]);
+  logger.log("proxy type", ProxyType[accountProxyType]);
+  await verifyAccountOwnerAndGuardian(logger, accountAddress, privateKey, accountVersion, implementationClassHash);
+
+  switch (accountVersion) {
+    case OldAccountVersion.v0_2_0:
+    case OldAccountVersion.v0_2_1:
+    case OldAccountVersion.v0_2_2:
+      return upgradeV0(logger, accountAddress, privateKey, implementationClassHash, accountProxyType, accountVersion);
+    case OldAccountVersion.v0_2_3_0:
+    case OldAccountVersion.v0_2_3_1:
+      return upgradeFrom_0_2_3(logger, accountAddress, privateKey, accountProxyType);
+    case OldAccountVersion.v0_3_0:
+    case OldAccountVersion.v0_3_1:
+      const upgrade_0_4_call = await upgrade_from_0_3_efo(logger, accountAddress, privateKey);
+      return [upgrade_0_4_call];
+  }
+}
+
+export async function upgradeFrom_0_2_3(
+  logger: ILogger,
+  accountAddress: string,
+  privateKey: string,
+  proxyType: ProxyType,
+  targetImplementationClassHash = v0_4_0_implementationClassHash,
+  upgradeCalldata = [0],
+): Promise<string> {
+  if (proxyType === ProxyType.NoProxy) {
+    throw new Error("Old version must have a proxy");
+  }
+  const accountToUpgrade = new Account(provider, accountAddress, privateKey);
+
+  const nonce = await provider.getNonceForAddress(accountAddress);
+  logger.log("nonce", nonce);
+
+  const call = {
+    contractAddress: accountAddress,
+    entrypoint: "upgrade",
+    calldata: CallData.compile({ implementation: targetImplementationClassHash, calldata: upgradeCalldata }),
+  };
+
+  const submitResult = await accountToUpgrade.execute([call]);
+  logger.log("upgrade to v0.4.0 transaction hash", submitResult.transaction_hash);
+  return submitResult.transaction_hash;
+}
+
+export async function upgradeV0(
+  logger: ILogger,
+  accountAddress: string,
+  privateKey: string,
+  implementationClassHash: string,
+  proxyType: ProxyType,
+  currentVersion: OldAccountVersion,
+  targetImplementationClassHash = v0_2_3_1_implementationClassHash,
+  targetImplementationAddress = v0_2_3_1_implementationAddress,
+): Promise<any> {
+  if (proxyType === ProxyType.NoProxy) {
+    throw new Error("Old version must have a proxy");
+  }
+  if (proxyType === ProxyType.OldProxy && currentVersion === OldAccountVersion.v0_2_2) {
+    throw new Error("v0.2.2 with old proxy is not supported");
+  }
+  const { abi } = await provider.getClassByHash(implementationClassHash);
+  const accountContract = new Contract(abi, accountAddress, provider);
 
   const nonce = (await accountContract.get_nonce()).nonce;
-  console.log("nonce", nonce);
+  logger.log("nonce", nonce);
 
   let upgradeTargetClassHashOrAddress = (() => {
     if (proxyType === ProxyType.NewProxy) {
-      return v0_3_1_implementationClassHash;
+      return targetImplementationClassHash;
     } else {
-      return v0_3_1_implementationAddress;
+      return targetImplementationAddress;
     }
   })();
 
@@ -224,9 +257,9 @@ async function upgradeV0(
       call.to, // to
       call.selector, // selector
       "0x0", // data_offset
+      num.toHex(call.calldata.length), // call_data_len
       num.toHex(call.calldata.length), // data_len
-      "0x1", // call_data_len
-      upgradeTargetClassHashOrAddress, // call_data
+      ...call.calldata, // call_data
       num.toHex(nonce), // nonce
     ],
   };
@@ -241,24 +274,22 @@ async function upgradeV0(
         accountAddress,
         callsHash,
         nonce,
-        0,
-        0,
+        0, // max_fee
+        0, // version
       ]);
     } else {
-      // based on: https://github.com/starknet-io/starknet.js/blob/v5.24.3/src/utils/hash.ts#L68
-      // https://docs.starknet.io/resources/transactions-reference/#invoke_v0
-      const calldataHash = hash.computeHashOnElements(unsignedRequest.calldata);
-      return hash.computeHashOnElements([
-        shortString.encodeShortString("invoke"),
+      return v2hash.calculateTransactionHashCommon(
+        constants.TransactionHashPrefix.INVOKE,
         unsignedRequest.version,
         unsignedRequest.contract_address,
         unsignedRequest.entry_point_selector,
-        calldataHash,
+        unsignedRequest.calldata,
         unsignedRequest.max_fee,
         await provider.getChainId(),
-      ]);
+      );
     }
   })();
+
   const signatureObj = ec.starkCurve.sign(msgHashToSign, privateKey) as any;
   const signatureArray = [num.toHexString(signatureObj["r"]), num.toHexString(signatureObj["s"])];
 
@@ -269,22 +300,19 @@ async function upgradeV0(
     signature: signatureArray,
   });
 
-  const updgrade_0_3_1_call = {
+  const updgrade_0_2_3_1_call = {
     contract_address: meta_v0_contract_address,
     entry_point: "execute_meta_tx_v0",
     calldata: metatx_calldata,
   };
 
-  const upgrade_0_4_call = await upgrade_from_0_3_1_efo(accountAddress, privateKey);
-
-  console.log(JSON.stringify([updgrade_0_3_1_call, upgrade_0_4_call], null, 2));
-  return "";
+  return updgrade_0_2_3_1_call;
 }
 
-export async function upgrade_from_0_3_1_efo(accountAddress: string, privateKey: string): Promise<any> {
+export async function upgrade_from_0_3_efo(_logger: ILogger, accountAddress: string, privateKey: string): Promise<any> {
   const outsideExec = {
     caller: shortString.encodeShortString("ANY_CALLER"),
-    nonce: 1234n, // stark.randomAddress(),
+    nonce: stark.randomAddress(),
     execute_after: 0,
     execute_before: Math.floor(Date.now() / 1000 + 86400), // one day from now
     calls: [
@@ -305,6 +333,6 @@ export async function upgrade_from_0_3_1_efo(accountAddress: string, privateKey:
   return {
     contract_address: upgrade_0_4_call.contractAddress,
     entry_point: upgrade_0_4_call.entrypoint,
-    calldata: num.bigNumberishArrayToHexadecimalStringArray(upgrade_0_4_call.calldata as any),
+    calldata: upgrade_0_4_call.calldata,
   };
 }

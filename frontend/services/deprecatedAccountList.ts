@@ -3,6 +3,9 @@ import { num } from "starknet";
 export const v0_4_0_implementationClassHash = num.cleanHex(
   "0x036078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f",
 );
+export const v0_4_0_implementationAddress = num.cleanHex(
+  "0x0205b9e3a6c1c8b356b93fe1bcf254831f6b7e9de51eb7d8c7eb86b6aa2b6f97",
+);
 
 export const v0_3_1_implementationClassHash = num.cleanHex(
   "0x029927c8af6bccf3f6fda035981e765a7bdbf18a2dc0d630494f8758aa908e2b",
@@ -27,6 +30,10 @@ export const v0_2_3_1_implementationAddress = num.cleanHex(
 
 export const v0_2_3_0_implementationClassHash = num.cleanHex(
   "0x01a7820094feaf82d53f53f214b81292d717e7bb9a92bb2488092cd306f3993f",
+);
+
+export const v0_2_3_0_implementationAddress = num.cleanHex(
+  "0x02ebbf2ec2065b4c5f89549b197b522d928d53ef3af2e48947a41dc1fe8a300a ",
 );
 
 export const v0_2_2_implementationClassHash = num.cleanHex(
