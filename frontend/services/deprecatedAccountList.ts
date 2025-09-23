@@ -33,7 +33,11 @@ export const v0_2_3_0_implementationClassHash = num.cleanHex(
 );
 
 export const v0_2_3_0_implementationAddress = num.cleanHex(
-  "0x02ebbf2ec2065b4c5f89549b197b522d928d53ef3af2e48947a41dc1fe8a300a ",
+  "0x02ebbf2ec2065b4c5f89549b197b522d928d53ef3af2e48947a41dc1fe8a300a",
+);
+
+export const v0_2_2_implementationAddress = num.cleanHex(
+  "0x054e493609b9a31e53a64b25e2f1fc96f6b21152c05c7348a0785435cc298a38",
 );
 
 export const v0_2_2_implementationClassHash = num.cleanHex(

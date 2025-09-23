@@ -57,7 +57,7 @@ const UpgradeForm = () => {
       {
         loading: `Upgrading account: ${values.address.slice(0, 5) + "..." + values.address.slice(-4)}`,
         success: (transactionHashOrCall) => {
-          if (transactionHashOrCall === undefined) {
+          if (transactionHashOrCall === null) {
             return <p className="text-sm">Account is already at the latest version</p>;
           }
           if (typeof transactionHashOrCall === "string") {
@@ -68,12 +68,6 @@ const UpgradeForm = () => {
               </a>
             );
           } else {
-            const call = transactionHashOrCall;
-            logger.log(
-              `Go to https://voyager.online/contract/${call.contract_address}#writeContract and go to "${call.entrypoint}". Paste the following calldata: ${call.calldata.join(", ")}`,
-            );
-            logger.log("Restart upgrade after the transaction is confirmed.");
-
             return <></>;
           }
         },
@@ -139,7 +133,7 @@ const UpgradeForm = () => {
       {/* Log Box */}
       <div className="font-barlow border border-[#FF875B] p-5 rounded-lg shadow-lg bg-white mt-5">
         <h3 className="text-lg font-medium mb-3">Logs</h3>
-        <div ref={logBoxRef} className="h-40 overflow-y-auto bg-gray-50 border rounded p-3 text-sm font-mono">
+        <div ref={logBoxRef} className="h-60 overflow-y-auto bg-gray-50 border rounded p-3 text-sm font-mono">
           {logs.map((log, index) => (
             <div key={index} className="text-gray-600 mb-1">
               {log}

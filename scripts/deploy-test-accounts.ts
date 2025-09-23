@@ -1,16 +1,12 @@
-import { Account, ETransactionVersion, TransactionType, ec, num, selector, stark } from "starknet";
+import { Account, ETransactionVersion, TransactionType, num, stark } from "starknet";
 import {
-  ProxyType,
   deployOldAccount_v0_2_0_proxy,
   deployOldAccount_v0_2_2,
   deployOldAccount_v0_3,
   getStrkBalance,
   provider,
   sendStrk,
-  strkAddress,
-  upgradeFrom_0_2_3,
   upgradeOldContract,
-  upgradeV0,
   v0_2_0_implementationAddress,
   v0_2_0_implementationClassHash,
   v0_2_0_proxyClassHash,
@@ -22,7 +18,6 @@ import {
   v0_2_3_0_implementationClassHash,
   v0_2_3_1_implementationAddress,
   v0_2_3_1_implementationClassHash,
-  v0_3_0_implementationAddress,
   v0_3_0_implementationClassHash,
   v0_3_1_implementationClassHash,
   v0_4_0_implementationClassHash,
@@ -58,14 +53,7 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
         txHash = txHashOrMulticall;
       } else {
         const call = txHashOrMulticall;
-
-        const calls = [
-          {
-            contractAddress: call.contract_address,
-            entrypoint: call.entry_point,
-            calldata: call.calldata,
-          },
-        ];
+        const calls = [call];
 
         const simulationResult = await executorAccount.simulateTransaction([
           {
@@ -77,6 +65,7 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
         const tx = await executorAccount.execute(calls, { resourceBounds: simulationResult[0].resourceBounds });
         txHash = tx.transaction_hash;
       }
+      console.log("Upgrade transaction", txHash);
       await provider.waitForTransaction(txHash);
     }
   } while (txHashOrMulticall);
@@ -120,21 +109,36 @@ async function main() {
     const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_2_2_implementationClassHash, salt);
     return account.address;
   });
+  await upgrade("v0.2.3.0 old proxy", async () =>
+    deployOldAccount_v0_2_0_proxy(
+      v0_2_0_proxyClassHash,
+      v0_2_3_0_implementationAddress,
+      v0_2_3_0_implementationClassHash,
+      salt,
+    ),
+  );
   await upgrade("v0.2.3.0 new proxy", async () => {
     const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_2_3_0_implementationClassHash, salt);
     return account.address;
   });
+  await upgrade("v0.2.3.1 old proxy", async () =>
+    deployOldAccount_v0_2_0_proxy(
+      v0_2_0_proxyClassHash,
+      v0_2_3_1_implementationAddress,
+      v0_2_3_1_implementationClassHash,
+      salt,
+    ),
+  );
   await upgrade("v0.2.3.1 new proxy", async () => {
     const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_2_3_1_implementationClassHash, salt);
     return account.address;
   });
-  await upgrade("v0.3.0 new proxy", async () => {
-    const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_3_0_implementationClassHash, salt);
+  await upgrade("v0.3.0 no proxy", async () => {
+    const { account } = await deployOldAccount_v0_3(v0_3_0_implementationClassHash, salt);
     return account.address;
   });
-
-  await upgrade("v0.3.1 new proxy", async () => {
-    const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_3_1_implementationClassHash, salt);
+  await upgrade("v0.3.1 no proxy", async () => {
+    const { account } = await deployOldAccount_v0_3(v0_3_1_implementationClassHash, salt);
     return account.address;
   });
 }

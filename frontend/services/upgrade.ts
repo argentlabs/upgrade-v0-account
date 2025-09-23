@@ -1,4 +1,17 @@
-import { Account, Contract, num, hash, ec, constants, shortString, CallData, selector, v2hash, stark } from "starknet";
+import {
+  Account,
+  Contract,
+  num,
+  hash,
+  ec,
+  constants,
+  shortString,
+  CallData,
+  selector,
+  v2hash,
+  stark,
+  Call,
+} from "starknet";
 import {
   provider,
   loadContract,
@@ -12,14 +25,11 @@ import {
   v0_2_3_0_implementationClassHash,
   getOutsideExecutionCall,
   getOutsideCall,
-  v0_3_1_implementationAddress,
   v0_3_1_implementationClassHash,
   v0_4_0_implementationClassHash,
   v0_3_0_implementationClassHash,
   meta_v0_contract_address,
   v0_2_3_1_implementationAddress,
-  v0_4_0_implementationAddress,
-  v0_3_0_implementationAddress,
 } from ".";
 
 enum OldAccountVersion {
@@ -51,9 +61,6 @@ export async function getAccountVersion(
   const accountClassHash = num.cleanHex(await provider.getClassHashAt(accountAddress));
 
   logger.log("account class hash", accountClassHash);
-  if (accountClassHash === v0_4_0_implementationClassHash) {
-    return [OldAccountVersion.v0_4_0, ProxyType.NoProxy, accountClassHash];
-  }
 
   let proxyType: ProxyType;
   let implementationClassHash: string;
@@ -96,6 +103,9 @@ export async function getAccountVersion(
       break;
     case v0_3_1_implementationClassHash:
       version = OldAccountVersion.v0_3_1;
+      break;
+    case v0_4_0_implementationClassHash:
+      version = OldAccountVersion.v0_4_0;
       break;
     default:
       throw new Error("Unknown implementation class hash");
@@ -152,11 +162,15 @@ export async function verifyAccountOwnerAndGuardian(
   }
 }
 
+// Upgrades an old Argent account to the newest version possible. It is impossible in some cases, because of technical
+// reasons to directly upgrade to the latest version. For this reason, the upgrade is done in multiple steps if necessary.
+// @returns Transaction hash of the upgrade transaction, or a Call that needs to be executed by another account,
+// or null if the account is already at the latest version
 export async function upgradeOldContract(
   logger: ILogger,
   accountAddress: string,
   privateKey: string,
-): Promise<string | any> {
+): Promise<string | Call | null> {
   logger.log("upgrading old account:", accountAddress);
 
   const [accountVersion, accountProxyType, implementationClassHash] = await getAccountVersion(logger, accountAddress);
@@ -180,7 +194,7 @@ export async function upgradeOldContract(
     case OldAccountVersion.v0_3_0:
     case OldAccountVersion.v0_3_1:
       const upgrade_0_4_call = await upgrade_from_0_3_efo(logger, accountAddress, privateKey);
-      return [upgrade_0_4_call];
+      return upgrade_0_4_call;
   }
 }
 
@@ -206,9 +220,16 @@ export async function upgradeFrom_0_2_3(
     calldata: CallData.compile({ implementation: targetImplementationClassHash, calldata: upgradeCalldata }),
   };
 
-  const submitResult = await accountToUpgrade.execute([call]);
-  logger.log("upgrade to v0.4.0 transaction hash", submitResult.transaction_hash);
-  return submitResult.transaction_hash;
+  try {
+    const submitResult = await accountToUpgrade.execute([call]);
+    logger.log("upgrade to v0.4.0 transaction hash", submitResult.transaction_hash);
+    return submitResult.transaction_hash;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("exceed balance")) {
+      throw new Error("Not enough STRK to pay for the upgrade transaction");
+    }
+    throw err;
+  }
 }
 
 export async function upgradeV0(
@@ -220,7 +241,7 @@ export async function upgradeV0(
   currentVersion: OldAccountVersion,
   targetImplementationClassHash = v0_2_3_1_implementationClassHash,
   targetImplementationAddress = v0_2_3_1_implementationAddress,
-): Promise<any> {
+): Promise<Call> {
   if (proxyType === ProxyType.NoProxy) {
     throw new Error("Old version must have a proxy");
   }
@@ -300,21 +321,28 @@ export async function upgradeV0(
     signature: signatureArray,
   });
 
-  const updgrade_0_2_3_1_call = {
-    contract_address: meta_v0_contract_address,
-    entry_point: "execute_meta_tx_v0",
+  const upgrade_0_2_3_1_call = {
+    contractAddress: meta_v0_contract_address,
+    entrypoint: "execute_meta_tx_v0",
     calldata: metatx_calldata,
   };
 
-  return updgrade_0_2_3_1_call;
+  logger.log(
+    `Go to https://voyager.online/contract/${upgrade_0_2_3_1_call.contractAddress}#writeContract\n` +
+      `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_2_3_1_call.entrypoint}" function. Paste the following calldata:\n\n` +
+      upgrade_0_2_3_1_call.calldata.join(", "),
+  );
+  logger.log("Restart upgrade after the transaction is confirmed.");
+
+  return upgrade_0_2_3_1_call;
 }
 
-export async function upgrade_from_0_3_efo(_logger: ILogger, accountAddress: string, privateKey: string): Promise<any> {
+export async function upgrade_from_0_3_efo(logger: ILogger, accountAddress: string, privateKey: string): Promise<Call> {
   const outsideExec = {
     caller: shortString.encodeShortString("ANY_CALLER"),
     nonce: stark.randomAddress(),
     execute_after: 0,
-    execute_before: Math.floor(Date.now() / 1000 + 86400), // one day from now
+    execute_before: Math.floor(Date.now() / 1000 + 86400 * 7), // one week from now
     calls: [
       getOutsideCall({
         contractAddress: accountAddress,
@@ -330,9 +358,13 @@ export async function upgrade_from_0_3_efo(_logger: ILogger, accountAddress: str
     await provider.getChainId(),
   );
 
-  return {
-    contract_address: upgrade_0_4_call.contractAddress,
-    entry_point: upgrade_0_4_call.entrypoint,
-    calldata: upgrade_0_4_call.calldata,
-  };
+  const calldata = upgrade_0_4_call.calldata! as string[];
+  logger.log(
+    `Go to https://voyager.online/contract/${upgrade_0_4_call.contractAddress}#writeContract\n` +
+      `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_4_call.entrypoint}" function. Paste the following calldata:\n\n` +
+      calldata.join(", "),
+  );
+  logger.log("Restart upgrade after the transaction is confirmed.");
+
+  return upgrade_0_4_call;
 }
