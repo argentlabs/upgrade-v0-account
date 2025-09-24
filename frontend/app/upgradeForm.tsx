@@ -71,7 +71,7 @@ const UpgradeForm = () => {
           }
         },
         error: (err) => {
-          console.error(err);
+          logger.log(err);
           return <p className="text-sm">${err.message}</p>;
         },
       },

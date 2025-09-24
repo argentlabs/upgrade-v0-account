@@ -226,6 +226,7 @@ export async function upgradeFrom_0_2_3(
     return submitResult.transaction_hash;
   } catch (err) {
     if (err instanceof Error && err.message.includes("exceed balance")) {
+      logger.log("Not enough STRK to pay for the upgrade transaction", err.message);
       throw new Error("Not enough STRK to pay for the upgrade transaction");
     }
     throw err;
