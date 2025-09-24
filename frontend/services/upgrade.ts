@@ -328,13 +328,15 @@ export async function upgradeV0(
     calldata: metatx_calldata,
   };
 
-  logger.log(`Go to https://voyager.online/contract/${upgrade_0_2_3_1_call.contractAddress}#writeContract`);
-  logger.log(
-    `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_2_3_1_call.entrypoint}" function.`,
-  );
-  logger.log(`Paste the following calldata:`);
+  logger.log(`1- Go to https://voyager.online/contract/${upgrade_0_2_3_1_call.contractAddress}#writeContract`);
+  logger.log(`2- Go to "Write Contract".`);
+  logger.log(`3- Connect with another funded account.`);
+  logger.log(`4- Expand "${upgrade_0_2_3_1_call.entrypoint}" function.`);
+  logger.log(`5- Enable "Format Calldata`);
+  logger.log(`6- Paste the following calldata:`);
   logger.log(upgrade_0_2_3_1_call.calldata.join(", "));
-  logger.log("After this transaction is confirmed, you need to trigger another upgrade by using this tool again");
+  logger.log(`7- Click "Transact" and confirm on your wallet`);
+  logger.log(`8- Restart upgrade after the transaction is confirmed.`);
 
   return upgrade_0_2_3_1_call;
 }
@@ -361,13 +363,15 @@ export async function upgrade_from_0_3_efo(logger: ILogger, accountAddress: stri
   );
 
   const calldata = upgrade_0_4_call.calldata! as string[];
-  logger.log(`Go to https://voyager.online/contract/${upgrade_0_4_call.contractAddress}#writeContract`);
-  logger.log(
-    `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_4_call.entrypoint}" function.`,
-  );
-  logger.log(`Paste the following calldata:`);
+  logger.log(`1- Go to https://voyager.online/contract/${upgrade_0_4_call.contractAddress}#writeContract`);
+  logger.log(`2- Go to "Write Contract".`);
+  logger.log(`3- Connect with another funded account.`);
+  logger.log(`4- Expand "${upgrade_0_4_call.entrypoint}" function.`);
+  logger.log(`5- Enable "Format Calldata`);
+  logger.log(`6- Paste the following calldata:`);
   logger.log(calldata.join(", "));
-  logger.log("After this transaction is confirmed, you need to trigger another upgrade by using this tool again");
+  logger.log(`7- Click "Transact" and confirm on your wallet`);
+  logger.log(`8- Restart upgrade after the transaction is confirmed.`);
 
   return upgrade_0_4_call;
 }
