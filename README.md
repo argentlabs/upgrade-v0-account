@@ -1,6 +1,6 @@
 ## What?
 
-This project helps to upgrade deprecated Ready accounts, v0.2.2 or earlier, to a version that can be used in the extension.
+This project helps to upgrade deprecated Ready accounts (see the [Supported account versions table](#supported-account-versions-and-upgrade-methods)) to a version that can be used in the extension.
 NOTE: this only works on mainnet, V0 transactions have been disabled on the other networks
 
 ## How?
