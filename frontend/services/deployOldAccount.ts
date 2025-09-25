@@ -92,7 +92,7 @@ export async function deployOldAccount_v0_2_0_proxy(
 ): Promise<string> {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
   const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
-  const retrievedClassHash = await provider.getClassHashAt(oldReadyAccountImplAddress);
+  const retrievedClassHash = num.toHex64(await provider.getClassHashAt(oldReadyAccountImplAddress));
   if (retrievedClassHash !== oldReadyAccountClassHash) {
     throw new Error("Implementation doesn't match");
   }

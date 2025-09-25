@@ -71,7 +71,7 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
   } while (txHashOrMulticall);
 
   const testAccount = new Account(provider, address, privateKey, "1", "0x3");
-  const classHash = await provider.getClassHashAt(address);
+  const classHash = num.toHex64(await provider.getClassHashAt(address));
   if (classHash !== v0_4_0_implementationClassHash) {
     throw new Error(`Unexpected class hash after upgrade: ${classHash}`);
   }

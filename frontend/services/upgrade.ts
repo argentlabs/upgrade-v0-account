@@ -58,19 +58,19 @@ export async function getAccountVersion(
   accountAddress: string,
 ): Promise<[OldAccountVersion, ProxyType, string]> {
   const accountContract = await loadContract(accountAddress);
-  const accountClassHash = num.cleanHex(await provider.getClassHashAt(accountAddress));
+  const accountClassHash = num.toHex64(await provider.getClassHashAt(accountAddress));
 
   logger.log("account class hash", accountClassHash);
 
   let proxyType: ProxyType;
   let implementationClassHash: string;
   if (accountClassHash === v0_2_2_proxyClassHash) {
-    implementationClassHash = num.toHexString((await accountContract.get_implementation()).implementation);
+    implementationClassHash = num.toHex64((await accountContract.get_implementation()).implementation);
     proxyType = ProxyType.NewProxy;
   } else if (accountClassHash === v0_2_0_proxyClassHash) {
-    const implementationAddress = num.toHexString((await accountContract.get_implementation()).implementation);
+    const implementationAddress = num.toHex64((await accountContract.get_implementation()).implementation);
     logger.log("implementationAddress", implementationAddress);
-    implementationClassHash = await provider.getClassHashAt(implementationAddress);
+    implementationClassHash = num.toHex64(await provider.getClassHashAt(implementationAddress));
     proxyType = ProxyType.OldProxy;
   } else {
     proxyType = ProxyType.NoProxy;
@@ -79,7 +79,7 @@ export async function getAccountVersion(
 
   logger.log("implementationClassHash", implementationClassHash);
 
-  implementationClassHash = num.cleanHex(implementationClassHash);
+  implementationClassHash = num.toHex64(implementationClassHash);
 
   let version: OldAccountVersion;
   switch (implementationClassHash) {

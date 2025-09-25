@@ -28,7 +28,7 @@ export const strkAddress = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab0720
 
 export const udcContractAddress = "0x041a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02bf";
 
-export const meta_v0_contract_address = "0x3e21ab91c0899efc48b6d6ccd09b61fd37766e9b0c3cc968a7655632fbc253c";
+export const meta_v0_contract_address = "0x03e21ab91c0899efc48b6d6ccd09b61fd37766e9b0c3cc968a7655632fbc253c";
 
 export async function sendStrk(contractAddress: string, amount: bigint) {
   console.log(`Sending STRK to ${contractAddress}....`);
