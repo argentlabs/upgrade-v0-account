@@ -48,7 +48,7 @@ This application helps upgrade old Ready account contracts to the latest version
 _\*: Upgrade from v2.3.x to v4.0.0 always contain data `[0x0]` to make sure that the proxy (old or new) is removed_
 
 (1): Old proxy is not compatible with account versions that do library calls.
-(2): It is not possible to have a v0.3.x account with an old proxy.
+(2): With the existing contracts it is not possible to have a v0.3.x account with an old proxy.
 
 ### Upgrade Process
 

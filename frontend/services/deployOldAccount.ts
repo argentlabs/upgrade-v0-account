@@ -1,6 +1,15 @@
 import { hash, Account, CallData, num, Call, RpcProvider, transaction } from "starknet";
 import { KeyPair, loadContract, provider, udcContractAddress } from ".";
 
+async function isExistingAccount(contractAddress: string) {
+  try {
+    await provider.getClassHashAt(contractAddress);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
   const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", "0x3");
@@ -18,13 +27,13 @@ export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, sa
   );
   const contractAddress = addresses[0];
 
-  try {
-    await provider.getClassHashAt(contractAddress);
+  if (await isExistingAccount(contractAddress)) {
+    console.log(`Account at ${contractAddress} already deployed`);
     const account = new Account(provider, contractAddress, owner, "0");
     const accountContract = await loadContract(account.address);
     accountContract.connect(account);
     return { account, accountContract, owner };
-  } catch {}
+  }
 
   console.log(`Deploying account at ${contractAddress}`);
   const { transaction_hash } = await deployer.execute(calls);
@@ -57,13 +66,13 @@ export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAc
   );
   const contractAddress = addresses[0];
 
-  try {
-    await provider.getClassHashAt(contractAddress);
+  if (await isExistingAccount(contractAddress)) {
+    console.log(`Account at ${contractAddress} already deployed`);
     const account = new Account(provider, contractAddress, owner, "0");
     const accountContract = await loadContract(account.address);
     accountContract.connect(account);
     return { account, accountContract, owner };
-  } catch {}
+  }
 
   console.log(`Deploying account at ${contractAddress}`);
   const { transaction_hash } = await deployer.execute(calls);
@@ -99,11 +108,10 @@ export async function deployOldAccount_v0_2_0_proxy(
     udcContractAddress,
   );
   const contractAddress = addresses[0];
-
-  try {
-    await provider.getClassHashAt(contractAddress);
+  if (await isExistingAccount(contractAddress)) {
+    console.log(`Account at ${contractAddress} already deployed`);
     return contractAddress;
-  } catch {}
+  }
 
   const initCall: Call = {
     contractAddress: contractAddress,
