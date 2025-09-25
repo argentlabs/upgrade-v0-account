@@ -7,12 +7,12 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Upgrade Deprecated Account",
-  description: "Upgrade deprecated Argent accounts",
+  description: "Upgrade deprecated Ready accounts",
 };
 
 const Navbar = () => (
-  <nav className=" text-white">
-    <Image alt="Argent Logo" src="/argent-logo-colour.png" width={200} height={200} />
+  <nav className="text-white p-4">
+    <Image alt="Ready Logo" src="/ready-logo.png" width={200} height={200} />
   </nav>
 );
 

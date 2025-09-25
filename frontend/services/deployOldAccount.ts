@@ -1,7 +1,7 @@
 import { hash, Account, CallData, num, Call, RpcProvider, transaction } from "starknet";
 import { KeyPair, loadContract, provider, udcContractAddress } from ".";
 
-export async function deployOldAccount_v0_3(oldArgentAccountClassHash: string, salt: bigint) {
+export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
   const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", "0x3");
 
@@ -9,7 +9,7 @@ export async function deployOldAccount_v0_3(oldArgentAccountClassHash: string, s
 
   const { calls, addresses } = transaction.buildUDCCall(
     {
-      classHash: oldArgentAccountClassHash,
+      classHash: oldReadyAccountClassHash,
       salt: num.toHex(salt),
       constructorCalldata,
       unique: false,
@@ -36,12 +36,12 @@ export async function deployOldAccount_v0_3(oldArgentAccountClassHash: string, s
   return { account, accountContract, owner };
 }
 
-export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldArgentAccountClassHash: string, salt: bigint) {
+export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
   const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", "0x3");
 
   const constructorCalldata = CallData.compile({
-    implementation: oldArgentAccountClassHash,
+    implementation: oldReadyAccountClassHash,
     selector: hash.getSelectorFromName("initialize"),
     calldata: CallData.compile({ owner: owner.publicKey, guardian: 0 }),
   });
@@ -77,17 +77,17 @@ export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldArgentA
 
 export async function deployOldAccount_v0_2_0_proxy(
   proxyClassHash: string,
-  oldArgentAccountImplAddress: string,
-  oldArgentAccountClassHash: string,
+  oldReadyAccountImplAddress: string,
+  oldReadyAccountClassHash: string,
   salt: bigint,
 ): Promise<string> {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
   const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
-  const retrievedClassHash = await provider.getClassHashAt(oldArgentAccountImplAddress);
-  if (retrievedClassHash !== oldArgentAccountClassHash) {
+  const retrievedClassHash = await provider.getClassHashAt(oldReadyAccountImplAddress);
+  if (retrievedClassHash !== oldReadyAccountClassHash) {
     throw new Error("Implementation doesn't match");
   }
-  const constructorCalldata = CallData.compile({ implementation: oldArgentAccountImplAddress });
+  const constructorCalldata = CallData.compile({ implementation: oldReadyAccountImplAddress });
 
   const { calls, addresses } = transaction.buildUDCCall(
     {
@@ -111,7 +111,6 @@ export async function deployOldAccount_v0_2_0_proxy(
     calldata: CallData.compile({ owner: owner.publicKey, guardian: 0 }),
   };
 
-  console.log(calls, initCall);
   const { transaction_hash } = await deployer.execute([...calls, initCall]);
   console.log(`Deploying account at ${contractAddress} ${transaction_hash}`);
   await deployer.waitForTransaction(transaction_hash);

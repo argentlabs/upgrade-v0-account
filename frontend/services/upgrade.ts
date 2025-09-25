@@ -162,7 +162,7 @@ export async function verifyAccountOwnerAndGuardian(
   }
 }
 
-// Upgrades an old Argent account to the newest version possible. It is impossible in some cases, because of technical
+// Upgrades an old Ready account to the newest version possible. It is impossible in some cases, because of technical
 // reasons to directly upgrade to the latest version. For this reason, the upgrade is done in multiple steps if necessary.
 // @returns Transaction hash of the upgrade transaction, or a Call that needs to be executed by another account,
 // or null if the account is already at the latest version

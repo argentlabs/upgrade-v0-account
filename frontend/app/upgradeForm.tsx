@@ -81,7 +81,7 @@ const UpgradeForm = () => {
   };
 
   return (
-    <div className="flex-col w-full max-w-2xl px-5">
+    <div className="flex-col w-full max-w-5xl px-5">
       <Toaster position="bottom-right" reverseOrder={false} />
       <Form {...form}>
         <form
