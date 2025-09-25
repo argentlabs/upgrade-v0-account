@@ -15,6 +15,7 @@ import {
   num,
   RPC,
   BigNumberish,
+  ETransactionVersion,
 } from "starknet";
 
 import dotenv from "dotenv";
@@ -32,7 +33,7 @@ export const meta_v0_contract_address = "0x03e21ab91c0899efc48b6d6ccd09b61fd3776
 
 export async function sendStrk(contractAddress: string, amount: bigint) {
   console.log(`Sending STRK to ${contractAddress}....`);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", "0x3");
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
 
   const { transaction_hash } = await deployer.execute({
     contractAddress: strkAddress,

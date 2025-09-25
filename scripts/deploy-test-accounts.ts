@@ -70,7 +70,7 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
     }
   } while (txHashOrMulticall);
 
-  const testAccount = new Account(provider, address, privateKey, "1", "0x3");
+  const testAccount = new Account(provider, address, privateKey, "1", ETransactionVersion.V3);
   const classHash = num.toHex64(await provider.getClassHashAt(address));
   if (classHash !== v0_4_0_implementationClassHash) {
     throw new Error(`Unexpected class hash after upgrade: ${classHash}`);
@@ -79,7 +79,10 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
   try {
     const response = await testAccount.execute([]);
     console.log("Empty tx to verify account works, tx hash:", response.transaction_hash);
-    await provider.waitForTransaction(response.transaction_hash);
+    const receipt = await provider.waitForTransaction(response.transaction_hash);
+    if (!receipt.isSuccess()) {
+      throw new Error(`Transaction failed: ${response.transaction_hash}`);
+    }
   } catch (err) {
     // exceed balance can happen when accont was already tested
     if (err instanceof Error && !err.message.includes("exceed balance")) {

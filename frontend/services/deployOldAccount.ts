@@ -1,7 +1,7 @@
-import { hash, Account, CallData, num, Call, RpcProvider, transaction } from "starknet";
+import { hash, Account, CallData, num, Call, RpcProvider, transaction, constants, ETransactionVersion } from "starknet";
 import { KeyPair, loadContract, provider, udcContractAddress } from ".";
 
-async function isExistingAccount(contractAddress: string) {
+async function isExistingAccount(contractAddress: string): Promise<boolean> {
   try {
     await provider.getClassHashAt(contractAddress);
     return true;
@@ -12,7 +12,7 @@ async function isExistingAccount(contractAddress: string) {
 
 export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", "0x3");
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
 
   const constructorCalldata = CallData.compile({ owner: owner.publicKey, guardian: 0 });
 
@@ -38,7 +38,10 @@ export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, sa
   console.log(`Deploying account at ${contractAddress}`);
   const { transaction_hash } = await deployer.execute(calls);
 
-  await deployer.waitForTransaction(transaction_hash);
+  const receipt = await deployer.waitForTransaction(transaction_hash);
+  if (!receipt.isSuccess()) {
+    throw new Error(`Transaction failed: ${transaction_hash}`);
+  }
   const account = new Account(provider, contractAddress, owner, "0");
   const accountContract = await loadContract(account.address);
 
@@ -47,7 +50,7 @@ export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, sa
 
 export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", "0x3");
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
 
   const constructorCalldata = CallData.compile({
     implementation: oldReadyAccountClassHash,
@@ -77,7 +80,10 @@ export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAc
   console.log(`Deploying account at ${contractAddress}`);
   const { transaction_hash } = await deployer.execute(calls);
 
-  await deployer.waitForTransaction(transaction_hash);
+  const receipt = await deployer.waitForTransaction(transaction_hash);
+  if (!receipt.isSuccess()) {
+    throw new Error(`Transaction failed: ${transaction_hash}`);
+  }
   const account = new Account(provider, contractAddress, owner, "0");
   const accountContract = await loadContract(account.address);
 
@@ -121,7 +127,10 @@ export async function deployOldAccount_v0_2_0_proxy(
 
   const { transaction_hash } = await deployer.execute([...calls, initCall]);
   console.log(`Deploying account at ${contractAddress} ${transaction_hash}`);
-  await deployer.waitForTransaction(transaction_hash);
+  const receipt = await deployer.waitForTransaction(transaction_hash);
+  if (!receipt.isSuccess()) {
+    throw new Error(`Transaction failed: ${transaction_hash}`);
+  }
 
   return contractAddress;
 }
