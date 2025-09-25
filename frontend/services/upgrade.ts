@@ -327,12 +327,13 @@ export async function upgradeV0(
     calldata: metatx_calldata,
   };
 
+  logger.log(`Go to https://voyager.online/contract/${upgrade_0_2_3_1_call.contractAddress}#writeContract`);
   logger.log(
-    `Go to https://voyager.online/contract/${upgrade_0_2_3_1_call.contractAddress}#writeContract\n` +
-      `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_2_3_1_call.entrypoint}" function. Paste the following calldata:\n\n` +
-      upgrade_0_2_3_1_call.calldata.join(", "),
+    `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_2_3_1_call.entrypoint}" function.`,
   );
-  logger.log("Restart upgrade after the transaction is confirmed.");
+  logger.log(`Paste the following calldata:`);
+  logger.log(upgrade_0_2_3_1_call.calldata.join(", "));
+  logger.log("After this transaction is confirmed, you need to trigger another upgrade by using this tool again");
 
   return upgrade_0_2_3_1_call;
 }
@@ -359,12 +360,13 @@ export async function upgrade_from_0_3_efo(logger: ILogger, accountAddress: stri
   );
 
   const calldata = upgrade_0_4_call.calldata! as string[];
+  logger.log(`Go to https://voyager.online/contract/${upgrade_0_4_call.contractAddress}#writeContract`);
   logger.log(
-    `Go to https://voyager.online/contract/${upgrade_0_4_call.contractAddress}#writeContract\n` +
-      `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_4_call.entrypoint}" function. Paste the following calldata:\n\n` +
-      calldata.join(", "),
+    `Go to "Write Contract". Connect with another funded account. Expand "${upgrade_0_4_call.entrypoint}" function.`,
   );
-  logger.log("Restart upgrade after the transaction is confirmed.");
+  logger.log(`Paste the following calldata:`);
+  logger.log(calldata.join(", "));
+  logger.log("After this transaction is confirmed, you need to trigger another upgrade by using this tool again");
 
   return upgrade_0_4_call;
 }

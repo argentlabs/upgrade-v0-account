@@ -33,8 +33,7 @@ const UpgradeForm = () => {
   // Logger implementation that follows ILogger interface
   const logger = {
     log: (...args: any[]) => {
-      const timestamp = new Date().toLocaleTimeString();
-      const message = `[${timestamp}] ${args.join(" ")}`;
+      const message = args.join(" ");
       setLogs((prev) => [...prev, message]);
       console.log(...args);
     },
