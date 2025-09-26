@@ -1,2 +1,2 @@
 import { upgradeOldContract } from "../frontend/services";
-await upgradeOldContract(process.env.ADDRESS!, process.env.PRIVATE_KEY!);
+await upgradeOldContract(console, process.env.ADDRESS!, process.env.PRIVATE_KEY!);

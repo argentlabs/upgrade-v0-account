@@ -1,51 +1,69 @@
-import { Account, RpcProvider, Signer, encode, ec, CallData, Contract, uint256, num, RPC } from "starknet";
+import {
+  Account,
+  Call,
+  hash,
+  RawArgs,
+  SignerInterface,
+  typedData,
+  RpcProvider,
+  Signer,
+  encode,
+  ec,
+  CallData,
+  Contract,
+  uint256,
+  num,
+  RPC,
+  BigNumberish,
+  ETransactionVersion,
+} from "starknet";
+
 import dotenv from "dotenv";
 dotenv.config({ override: true });
 
-class OpenRpcProvider extends RpcProvider {
-  fetchEndpoint<T extends keyof RPC.Methods>(
-    method: T,
-    params?: RPC.Methods[T]["params"],
-  ): Promise<RPC.Methods[T]["result"]> {
-    return super.fetchEndpoint(method, params);
-  }
-}
-export const provider = new OpenRpcProvider({ nodeUrl: "https://starknet-mainnet.public.blastapi.io" });
+export const provider = new RpcProvider({
+  nodeUrl: "https://starknet-mainnet.public.blastapi.io/rpc/v0_8",
+});
 
-export const ethAddress = "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
+export const strkAddress = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 
-export async function sendEth(contractAddress: string, amount: bigint) {
-  console.log(`Sending eth to ${contractAddress}....`);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
+export const udcContractAddress = "0x02ceed65a4bd731034c01113685c831b01c15d7d432f71afb1cf1634b53a2125";
+
+export const metaV0ContractAddress = "0x03e21ab91c0899efc48b6d6ccd09b61fd37766e9b0c3cc968a7655632fbc253c";
+
+export async function sendStrk(contractAddress: string, amount: bigint) {
+  console.log(`Sending STRK to ${contractAddress}....`);
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
+
   const { transaction_hash } = await deployer.execute({
-    contractAddress: ethAddress,
+    contractAddress: strkAddress,
     entrypoint: "transfer",
     calldata: CallData.compile({ recipient: contractAddress, amount: uint256.bnToUint256(amount) }),
   });
   await provider.waitForTransaction(transaction_hash);
-  console.log(`ETH transfer successful ${contractAddress}`);
+  console.log(`STRK transfer successful ${contractAddress}`);
 }
 
-export async function getEthBalance(contractAddress: string): Promise<bigint> {
-  const ethContract = await getEthContract();
-  return await ethContract.balanceOf(contractAddress);
+export async function getStrkBalance(contractAddress: string): Promise<bigint> {
+  const strkContract = await getStrkContract();
+  return await strkContract.balanceOf(contractAddress);
 }
 
-let ethContract: Contract;
+let strkContract: Contract;
 
-export async function getEthContract() {
-  if (ethContract) {
-    return ethContract;
+export async function getStrkContract() {
+  if (strkContract) {
+    return strkContract;
   }
-  const ethProxy = await loadContract(ethAddress);
-  if (ethProxy.abi.some((entry) => entry.name == "implementation")) {
-    const implementationAddress = num.toHex((await ethProxy.implementation()).address);
+  const proxy = await loadContract(strkAddress);
+  if (proxy.abi.some((entry) => entry.name == "implementation")) {
+    const implementationAddress = num.toHex((await proxy.implementation()).address);
     const ethImplementation = await loadContract(implementationAddress);
-    ethContract = new Contract(ethImplementation.abi, ethAddress, ethProxy.providerOrAccount);
+    strkContract = new Contract(ethImplementation.abi, strkAddress, proxy.providerOrAccount);
   } else {
-    ethContract = ethProxy;
+    strkContract = proxy;
   }
-  return ethContract;
+  return strkContract;
 }
 
 export async function loadContract(contractAddress: string): Promise<Contract> {
@@ -68,4 +86,101 @@ export class KeyPair extends Signer {
   public get publicKey() {
     return BigInt(ec.starkCurve.getStarkKey(this.pk));
   }
+}
+
+const types = {
+  StarkNetDomain: [
+    { name: "name", type: "felt" },
+    { name: "version", type: "felt" },
+    { name: "chainId", type: "felt" },
+  ],
+  OutsideExecution: [
+    { name: "caller", type: "felt" },
+    { name: "nonce", type: "felt" },
+    { name: "execute_after", type: "felt" },
+    { name: "execute_before", type: "felt" },
+    { name: "calls_len", type: "felt" },
+    { name: "calls", type: "OutsideCall*" },
+  ],
+  OutsideCall: [
+    { name: "to", type: "felt" },
+    { name: "selector", type: "felt" },
+    { name: "calldata_len", type: "felt" },
+    { name: "calldata", type: "felt*" },
+  ],
+};
+
+function getDomain(chainId: string) {
+  return {
+    name: "Account.execute_from_outside",
+    version: "1",
+    chainId: chainId,
+  };
+}
+
+export interface OutsideExecution {
+  caller: string;
+  nonce: BigNumberish;
+  execute_after: BigNumberish;
+  execute_before: BigNumberish;
+  calls: OutsideCall[];
+}
+
+export interface OutsideCall {
+  to: string;
+  selector: BigNumberish;
+  calldata: RawArgs;
+}
+
+export function getOutsideCall(call: Call): OutsideCall {
+  return {
+    to: call.contractAddress,
+    selector: hash.getSelectorFromName(call.entrypoint),
+    calldata: call.calldata ?? [],
+  };
+}
+
+export function getTypedDataHash(
+  outsideExecution: OutsideExecution,
+  accountAddress: BigNumberish,
+  chainId: string,
+): string {
+  return typedData.getMessageHash(getTypedData(outsideExecution, chainId), accountAddress);
+}
+
+export function getTypedData(outsideExecution: OutsideExecution, chainId: string) {
+  return {
+    types: types,
+    primaryType: "OutsideExecution",
+    domain: getDomain(chainId),
+    message: {
+      ...outsideExecution,
+      calls_len: outsideExecution.calls.length,
+      calls: outsideExecution.calls.map((call) => {
+        return {
+          ...call,
+          calldata_len: call.calldata.length,
+          calldata: call.calldata,
+        };
+      }),
+    },
+  };
+}
+
+export async function getOutsideExecutionCall(
+  outsideExecution: OutsideExecution,
+  accountAddress: string,
+  privateKey: string,
+  chainId: string,
+): Promise<Call> {
+  const currentTypedData = getTypedData(outsideExecution, chainId);
+  const messageHash = typedData.getMessageHash(currentTypedData, accountAddress);
+  const { r, s } = ec.starkCurve.sign(messageHash, privateKey);
+  const signature = [r.toString(), s.toString()];
+
+  return {
+    contractAddress: accountAddress,
+    entrypoint: "execute_from_outside",
+    calldata: CallData.compile({ ...outsideExecution, signature }),
+  };
 }

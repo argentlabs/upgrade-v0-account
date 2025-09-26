@@ -1,89 +1,136 @@
-import { hash, Account, CallData, num, Call } from "starknet";
-import { getEthBalance, sendEth, KeyPair, loadContract, provider } from ".";
+import { hash, Account, CallData, num, Call, RpcProvider, transaction, constants, ETransactionVersion } from "starknet";
+import { KeyPair, loadContract, provider, udcContractAddress } from ".";
 
-export async function deployOldAccount_v0_2_2(
-  proxyClassHash: string,
-  oldArgentAccountClassHash: string,
-  version: string,
-  fundAmount: bigint,
-  salt: bigint,
-) {
+async function isExistingAccount(contractAddress: string): Promise<boolean> {
+  try {
+    await provider.getClassHashAt(contractAddress);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
+
+  const constructorCalldata = CallData.compile({ owner: owner.publicKey, guardian: 0 });
+
+  const { calls, addresses } = transaction.buildUDCCall(
+    {
+      classHash: oldReadyAccountClassHash,
+      salt: num.toHex(salt),
+      constructorCalldata,
+      unique: false,
+    },
+    udcContractAddress,
+  );
+  const contractAddress = addresses[0];
+
+  if (await isExistingAccount(contractAddress)) {
+    console.log(`Account at ${contractAddress} already deployed`);
+    const account = new Account(provider, contractAddress, owner, "0");
+    const accountContract = await loadContract(account.address);
+    accountContract.connect(account);
+    return { account, accountContract, owner };
+  }
+
+  console.log(`Deploying account at ${contractAddress}`);
+  const { transaction_hash } = await deployer.execute(calls);
+
+  const receipt = await deployer.waitForTransaction(transaction_hash);
+  if (!receipt.isSuccess()) {
+    throw new Error(`Transaction failed: ${transaction_hash}`);
+  }
+  const account = new Account(provider, contractAddress, owner, "0");
+  const accountContract = await loadContract(account.address);
+
+  return { account, accountContract, owner };
+}
+
+export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAccountClassHash: string, salt: bigint) {
+  const owner = new KeyPair(process.env.PRIVATE_KEY!);
+  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
 
   const constructorCalldata = CallData.compile({
-    implementation: oldArgentAccountClassHash,
+    implementation: oldReadyAccountClassHash,
     selector: hash.getSelectorFromName("initialize"),
     calldata: CallData.compile({ owner: owner.publicKey, guardian: 0 }),
   });
 
-  const contractAddress = hash.calculateContractAddressFromHash(salt, proxyClassHash, constructorCalldata, 0);
-  const deployerBalance = await getEthBalance(deployer.address);
-  const { transaction_hash } = await deployer.execute(
-    deployer.buildUDCContractPayload({
+  const { calls, addresses } = transaction.buildUDCCall(
+    {
       classHash: proxyClassHash,
       salt: num.toHex(salt),
       constructorCalldata,
       unique: false,
-    }),
-    undefined,
-    { maxFee: deployerBalance },
+    },
+    udcContractAddress,
   );
-  console.log(`Deploying account at ${contractAddress} (version ${version})`);
+  const contractAddress = addresses[0];
 
-  await deployer.waitForTransaction(transaction_hash);
+  if (await isExistingAccount(contractAddress)) {
+    console.log(`Account at ${contractAddress} already deployed`);
+    const account = new Account(provider, contractAddress, owner, "0");
+    const accountContract = await loadContract(account.address);
+    accountContract.connect(account);
+    return { account, accountContract, owner };
+  }
 
+  console.log(`Deploying account at ${contractAddress}`);
+  const { transaction_hash } = await deployer.execute(calls);
+
+  const receipt = await deployer.waitForTransaction(transaction_hash);
+  if (!receipt.isSuccess()) {
+    throw new Error(`Transaction failed: ${transaction_hash}`);
+  }
   const account = new Account(provider, contractAddress, owner, "0");
   const accountContract = await loadContract(account.address);
-  accountContract.connect(account);
-  await sendEth(contractAddress, fundAmount);
 
   return { account, accountContract, owner };
 }
 
 export async function deployOldAccount_v0_2_0_proxy(
   proxyClassHash: string,
-  oldArgentAccountImplAddress: string,
-  oldArgentAccountClassHash: string,
-  version: string,
-  fundAmount: bigint,
+  oldReadyAccountImplAddress: string,
+  oldReadyAccountClassHash: string,
   salt: bigint,
-) {
+): Promise<string> {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
   const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
-  const retrievedClassHash = await provider.getClassHashAt(oldArgentAccountImplAddress);
-  if (retrievedClassHash !== oldArgentAccountClassHash) {
+  const retrievedClassHash = num.toHex64(await provider.getClassHashAt(oldReadyAccountImplAddress));
+  if (retrievedClassHash !== oldReadyAccountClassHash) {
     throw new Error("Implementation doesn't match");
   }
-  const constructorCalldata = CallData.compile({ implementation: oldArgentAccountImplAddress });
+  const constructorCalldata = CallData.compile({ implementation: oldReadyAccountImplAddress });
 
-  const contractAddress = hash.calculateContractAddressFromHash(salt, proxyClassHash, constructorCalldata, 0);
-
-  const { transaction_hash: transactionHashDeploy } = await deployer.execute(
-    deployer.buildUDCContractPayload({
+  const { calls, addresses } = transaction.buildUDCCall(
+    {
       classHash: proxyClassHash,
       salt: num.toHex(salt),
       constructorCalldata,
       unique: false,
-    }),
-    undefined,
-    { maxFee: await getEthBalance(deployer.address) },
+    },
+    udcContractAddress,
   );
-  console.log(`Deploying account at ${contractAddress} (version ${version})`);
-  await deployer.waitForTransaction(transactionHashDeploy);
-
-  console.log(`Initializing account at ${contractAddress} (version ${version})`);
+  const contractAddress = addresses[0];
+  if (await isExistingAccount(contractAddress)) {
+    console.log(`Account at ${contractAddress} already deployed`);
+    return contractAddress;
+  }
 
   const initCall: Call = {
     contractAddress: contractAddress,
     entrypoint: "initialize",
     calldata: CallData.compile({ owner: owner.publicKey, guardian: 0 }),
   };
-  const { transaction_hash: transactionHashExecute } = await deployer.execute([initCall], undefined, {
-    maxFee: await getEthBalance(deployer.address),
-  });
-  await deployer.waitForTransaction(transactionHashExecute);
 
-  console.log(`Funding account at ${contractAddress} (version ${version})`);
-  await sendEth(contractAddress, fundAmount);
+  const { transaction_hash } = await deployer.execute([...calls, initCall]);
+  console.log(`Deploying account at ${contractAddress} ${transaction_hash}`);
+  const receipt = await deployer.waitForTransaction(transaction_hash);
+  if (!receipt.isSuccess()) {
+    throw new Error(`Transaction failed: ${transaction_hash}`);
+  }
+
+  return contractAddress;
 }
