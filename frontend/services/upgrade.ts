@@ -28,7 +28,7 @@ import {
   v0_3_1_implementationClassHash,
   v0_4_0_implementationClassHash,
   v0_3_0_implementationClassHash,
-  meta_v0_contract_address,
+  metaV0ContractAddress,
   v0_2_3_1_implementationAddress,
 } from ".";
 
@@ -255,13 +255,8 @@ export async function upgradeV0(
   const nonce = (await accountContract.get_nonce()).nonce;
   logger.log("nonce", nonce);
 
-  let upgradeTargetClassHashOrAddress = (() => {
-    if (proxyType === ProxyType.NewProxy) {
-      return targetImplementationClassHash;
-    } else {
-      return targetImplementationAddress;
-    }
-  })();
+  const upgradeTargetClassHashOrAddress =
+    proxyType === ProxyType.NewProxy ? targetImplementationClassHash : targetImplementationAddress;
 
   const call = {
     to: accountAddress,
@@ -315,7 +310,7 @@ export async function upgradeV0(
   const signatureObj = ec.starkCurve.sign(msgHashToSign, privateKey) as any;
   const signatureArray = [num.toHexString(signatureObj["r"]), num.toHexString(signatureObj["s"])];
 
-  const metatx_calldata = CallData.compile({
+  const meta_tx_calldata = CallData.compile({
     target: unsignedRequest.contract_address,
     entry_point_selector: unsignedRequest.entry_point_selector,
     calldata: unsignedRequest.calldata,
@@ -323,9 +318,9 @@ export async function upgradeV0(
   });
 
   const upgrade_0_2_3_1_call = {
-    contractAddress: meta_v0_contract_address,
+    contractAddress: metaV0ContractAddress,
     entrypoint: "execute_meta_tx_v0",
-    calldata: metatx_calldata,
+    calldata: meta_tx_calldata,
   };
 
   logger.log(`1- Go to https://voyager.online/contract/${upgrade_0_2_3_1_call.contractAddress}#writeContract`);

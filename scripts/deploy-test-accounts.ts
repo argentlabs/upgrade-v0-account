@@ -84,7 +84,7 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
       throw new Error(`Transaction failed: ${response.transaction_hash}`);
     }
   } catch (err) {
-    // exceed balance can happen when accont was already tested
+    // exceed balance can happen when account was already tested
     if (err instanceof Error && !err.message.includes("exceed balance")) {
       throw err;
     }

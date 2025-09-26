@@ -9,7 +9,6 @@
     "starknet": "7.6.4"
   },
   "scripts": {
-    "test-all": "bun mocha tests/*.test.ts",
     "format": "bun prettier . --write",
     "upgrade": "bun run ./scripts/upgrade-account.ts"
   },
