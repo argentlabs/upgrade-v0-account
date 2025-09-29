@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 const Navbar = () => (
   <nav className="text-white p-4">
-    <Image alt="Ready Logo" src="/ready-logo.png" width={200} height={200} />
+    <Image alt="Ready Logo" src="ready-logo.png" width={200} height={200} />
   </nav>
 );
 
