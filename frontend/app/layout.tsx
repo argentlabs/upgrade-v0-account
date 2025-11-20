@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Image from "next/image";
+import readyLogo from "@/assets/ready-logo.png";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 const Navbar = () => (
   <nav className="text-white p-4">
-    <Image alt="Ready Logo" src="ready-logo.png" width={200} height={200} />
+    <Image alt="Ready Logo" src={readyLogo} width={200} height={200} />
   </nav>
 );
 

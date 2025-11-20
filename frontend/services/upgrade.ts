@@ -176,6 +176,7 @@ export async function upgradeOldContract(
   const [accountVersion, accountProxyType, implementationClassHash] = await getAccountVersion(logger, accountAddress);
 
   if (accountVersion === OldAccountVersion.v0_4_0) {
+    logger.log("Account is already at the latest version");
     return null;
   }
 

@@ -7,7 +7,7 @@ echo "Please enter your wallet address:"
 read WALLET_ADDRESS
 
 # Save these values in a .env file
-echo "RPC_URL=https://starknet-mainnet.public.blastapi.io" > .env
+echo "RPC_URL=https://rpc.starknet.lava.build/rpc/v0_8" > .env
 echo "PRIVATE_KEY=$PRIVATE_KEY" >> .env
 echo "ADDRESS=$WALLET_ADDRESS" >> .env
 
