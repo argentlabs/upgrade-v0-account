@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import toast, { Toaster } from "react-hot-toast";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import toast, { Toaster } from "react-hot-toast";
 import { CiCircleInfo } from "react-icons/ci";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { InfoModal } from "./infoModal";
 import { upgradeOldContract } from "@/services";
+import { InfoModal } from "./infoModal";
 
 const formSchema = z.object({
   address: z.string().startsWith("0x").min(50).max(80),

@@ -25,7 +25,13 @@ import {
 
 const privateKey = process.env.PRIVATE_KEY!;
 const deployerAddress = process.env.ADDRESS!;
-const executorAccount = new Account(provider, deployerAddress, privateKey, "1", ETransactionVersion.V3);
+const executorAccount = new Account({
+  provider,
+  address: deployerAddress,
+  signer: privateKey,
+  cairoVersion: "1",
+  transactionVersion: ETransactionVersion.V3,
+});
 
 const salt = num.toBigInt(stark.randomAddress());
 
@@ -70,7 +76,13 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
     }
   } while (txHashOrMulticall);
 
-  const testAccount = new Account(provider, address, privateKey, "1", ETransactionVersion.V3);
+  const testAccount = new Account({
+    provider,
+    address,
+    signer: privateKey,
+    cairoVersion: "1",
+    transactionVersion: ETransactionVersion.V3,
+  });
   const classHash = num.toHex64(await provider.getClassHashAt(address));
   if (classHash !== v0_4_0_implementationClassHash) {
     throw new Error(`Unexpected class hash after upgrade: ${classHash}`);

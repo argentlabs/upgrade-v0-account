@@ -1,7 +1,6 @@
 {
-  "extensions": ["ts"],
-  "test": ["tests/**.ts"],
-  "node-option": ["loader=ts-node/esm"],
+  "spec": ["tests-integration/**/*.test.ts"],
+  "node-option": ["import=tsx"],
   "slow": 5000,
   "timeout": 300000
 }

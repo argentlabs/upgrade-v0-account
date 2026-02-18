@@ -1,8 +1,5 @@
 {
-  "arrowParens": "always",
-  "useTabs": false,
-  "trailingComma": "all",
-  "singleQuote": false,
-  "semi": true,
-  "printWidth": 120
+  "$schema": "https://json.schemastore.org/prettierrc",
+  "printWidth": 120,
+  "plugins": ["prettier-plugin-organize-imports"]
 }

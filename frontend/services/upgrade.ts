@@ -1,36 +1,37 @@
 import {
   Account,
-  Contract,
-  num,
-  hash,
-  ec,
-  constants,
-  shortString,
-  CallData,
-  selector,
-  v2hash,
-  stark,
   Call,
+  CallData,
+  constants,
+  Contract,
+  ec,
+  ETransactionVersion,
+  hash,
+  num,
+  selector,
+  shortString,
+  stark,
+  v2hash,
 } from "starknet";
 import {
-  provider,
-  loadContract,
+  getOutsideCall,
+  getOutsideExecutionCall,
   KeyPair,
-  v0_2_2_implementationClassHash,
-  v0_2_2_proxyClassHash,
+  loadContract,
+  metaV0ContractAddress,
+  provider,
+  v0_2_0_implementationClassHash,
   v0_2_0_proxyClassHash,
   v0_2_1_implementationClassHash,
-  v0_2_0_implementationClassHash,
-  v0_2_3_1_implementationClassHash,
+  v0_2_2_implementationClassHash,
+  v0_2_2_proxyClassHash,
   v0_2_3_0_implementationClassHash,
-  getOutsideExecutionCall,
-  getOutsideCall,
+  v0_2_3_1_implementationAddress,
+  v0_2_3_1_implementationClassHash,
+  v0_3_0_implementationClassHash,
   v0_3_1_implementationClassHash,
   v0_4_0_implementationClassHash,
-  v0_3_0_implementationClassHash,
-  metaV0ContractAddress,
-  v0_2_3_1_implementationAddress,
-} from ".";
+} from "./index.js";
 
 enum OldAccountVersion {
   v0_2_0,
@@ -122,7 +123,7 @@ export async function verifyAccountOwnerAndGuardian(
 ) {
   const keyPair = new KeyPair(privateKey);
   const { abi } = await provider.getClassByHash(implementationClassHash);
-  const accountContract = new Contract(abi, accountAddress, provider);
+  const accountContract = new Contract({abi, address: accountAddress, providerOrAccount:provider});
 
   logger.log("keyPair.pubKey", keyPair.publicKey);
 
@@ -210,7 +211,7 @@ export async function upgradeFrom_0_2_3(
   if (proxyType === ProxyType.NoProxy) {
     throw new Error("Old version must have a proxy");
   }
-  const accountToUpgrade = new Account(provider, accountAddress, privateKey);
+  const accountToUpgrade = new Account({provider, address: accountAddress, signer: privateKey});
 
   const nonce = await provider.getNonceForAddress(accountAddress);
   logger.log("nonce", nonce);
@@ -251,7 +252,7 @@ export async function upgradeV0(
     throw new Error("v0.2.2 with old proxy is not supported");
   }
   const { abi } = await provider.getClassByHash(implementationClassHash);
-  const accountContract = new Contract(abi, accountAddress, provider);
+  const accountContract = new Contract({abi, address: accountAddress, providerOrAccount:provider});
 
   const nonce = (await accountContract.get_nonce()).nonce;
   logger.log("nonce", nonce);

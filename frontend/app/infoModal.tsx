@@ -1,6 +1,5 @@
 "use client";
 
-import { FC } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { FC } from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -23,7 +23,8 @@ export const InfoModal: FC<ModalProps> = ({ isOpen, setIsOpen }) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Your private key will not be saved!</AlertDialogTitle>
           <AlertDialogDescription className="text-justify">
-            The private key will not leave your computer. It is only used to sign a transaction locally in this website. And is never sent to our servers or transmited over the internet
+            The private key will not leave your computer. It is only used to sign a transaction locally in this website.
+            And is never sent to our servers or transmited over the internet
             <br />
             Please double check that this is the correct URL and that you are not being phished.
           </AlertDialogDescription>

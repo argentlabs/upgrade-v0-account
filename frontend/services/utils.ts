@@ -1,21 +1,19 @@
 import {
   Account,
+  BigNumberish,
   Call,
-  hash,
-  RawArgs,
-  SignerInterface,
-  typedData,
-  RpcProvider,
-  Signer,
-  encode,
-  ec,
   CallData,
   Contract,
-  uint256,
-  num,
-  RPC,
-  BigNumberish,
+  ec,
+  encode,
   ETransactionVersion,
+  hash,
+  num,
+  RawArgs,
+  RpcProvider,
+  Signer,
+  typedData,
+  uint256,
 } from "starknet";
 
 import dotenv from "dotenv";
@@ -33,7 +31,7 @@ export const metaV0ContractAddress = "0x03e21ab91c0899efc48b6d6ccd09b61fd37766e9
 
 export async function sendStrk(contractAddress: string, amount: bigint) {
   console.log(`Sending STRK to ${contractAddress}....`);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
+  const deployer = new Account({provider, address: process.env.ADDRESS!, signer: process.env.PRIVATE_KEY!, cairoVersion: "1", transactionVersion: ETransactionVersion.V3});
 
   const { transaction_hash } = await deployer.execute({
     contractAddress: strkAddress,
@@ -59,7 +57,7 @@ export async function getStrkContract() {
   if (proxy.abi.some((entry) => entry.name == "implementation")) {
     const implementationAddress = num.toHex((await proxy.implementation()).address);
     const ethImplementation = await loadContract(implementationAddress);
-    strkContract = new Contract(ethImplementation.abi, strkAddress, proxy.providerOrAccount);
+    strkContract = new Contract({abi: ethImplementation.abi, address: strkAddress, providerOrAccount: proxy.providerOrAccount});
   } else {
     strkContract = proxy;
   }
@@ -71,7 +69,7 @@ export async function loadContract(contractAddress: string): Promise<Contract> {
   if (!abi) {
     throw new Error("Error while getting ABI");
   }
-  return new Contract(abi, contractAddress, provider);
+  return new Contract({abi, address: contractAddress, providerOrAccount:provider});
 }
 
 export class KeyPair extends Signer {
