@@ -39,7 +39,7 @@ async function tryFund(address: string) {
   const balance = await getStrkBalance(address);
   console.log(`STRK balance: ${balance}`);
   if (balance === 0n) {
-    await sendStrk(address, 10n ** 16n);
+    await sendStrk(address, 10n ** 17n);
   }
 }
 
