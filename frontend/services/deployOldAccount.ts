@@ -1,4 +1,4 @@
-import { hash, Account, CallData, num, Call, RpcProvider, transaction, constants, ETransactionVersion } from "starknet";
+import { hash, Account, CallData, num, Call, defaultDeployer, ETransactionVersion } from "starknet";
 import { KeyPair, loadContract, provider, udcContractAddress } from ".";
 
 async function isExistingAccount(contractAddress: string): Promise<boolean> {
@@ -12,11 +12,17 @@ async function isExistingAccount(contractAddress: string): Promise<boolean> {
 
 export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
+  const deployer = new Account({
+    provider,
+    address: process.env.ADDRESS!,
+    signer: process.env.PRIVATE_KEY!,
+    cairoVersion: "1",
+    transactionVersion: ETransactionVersion.V3,
+  });
 
   const constructorCalldata = CallData.compile({ owner: owner.publicKey, guardian: 0 });
 
-  const { calls, addresses } = transaction.buildUDCCall(
+  const { calls, addresses } = defaultDeployer.buildDeployerCall(
     {
       classHash: oldReadyAccountClassHash,
       salt: num.toHex(salt),
@@ -29,9 +35,14 @@ export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, sa
 
   if (await isExistingAccount(contractAddress)) {
     console.log(`Account at ${contractAddress} already deployed`);
-    const account = new Account(provider, contractAddress, owner, "0");
+    const account = new Account({
+      provider,
+      address: contractAddress,
+      signer: owner,
+      cairoVersion: "0",
+    });
     const accountContract = await loadContract(account.address);
-    accountContract.connect(account);
+    accountContract.providerOrAccount = account;
     return { account, accountContract, owner };
   }
 
@@ -42,7 +53,12 @@ export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, sa
   if (!receipt.isSuccess()) {
     throw new Error(`Transaction failed: ${transaction_hash}`);
   }
-  const account = new Account(provider, contractAddress, owner, "0");
+  const account = new Account({
+    provider,
+    address: contractAddress,
+    signer: owner,
+    cairoVersion: "0",
+  });
   const accountContract = await loadContract(account.address);
 
   return { account, accountContract, owner };
@@ -50,7 +66,13 @@ export async function deployOldAccount_v0_3(oldReadyAccountClassHash: string, sa
 
 export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAccountClassHash: string, salt: bigint) {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!, "1", ETransactionVersion.V3);
+  const deployer = new Account({
+    provider,
+    address: process.env.ADDRESS!,
+    signer: process.env.PRIVATE_KEY!,
+    cairoVersion: "1",
+    transactionVersion: ETransactionVersion.V3,
+  });
 
   const constructorCalldata = CallData.compile({
     implementation: oldReadyAccountClassHash,
@@ -58,7 +80,7 @@ export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAc
     calldata: CallData.compile({ owner: owner.publicKey, guardian: 0 }),
   });
 
-  const { calls, addresses } = transaction.buildUDCCall(
+  const { calls, addresses } = defaultDeployer.buildDeployerCall(
     {
       classHash: proxyClassHash,
       salt: num.toHex(salt),
@@ -71,9 +93,15 @@ export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAc
 
   if (await isExistingAccount(contractAddress)) {
     console.log(`Account at ${contractAddress} already deployed`);
-    const account = new Account(provider, contractAddress, owner, "0");
+    const account = new Account({
+      provider,
+      address: contractAddress,
+      signer: owner,
+      cairoVersion: "0",
+      transactionVersion: ETransactionVersion.V3,
+    });
     const accountContract = await loadContract(account.address);
-    accountContract.connect(account);
+    accountContract.providerOrAccount = account;
     return { account, accountContract, owner };
   }
 
@@ -84,7 +112,12 @@ export async function deployOldAccount_v0_2_2(proxyClassHash: string, oldReadyAc
   if (!receipt.isSuccess()) {
     throw new Error(`Transaction failed: ${transaction_hash}`);
   }
-  const account = new Account(provider, contractAddress, owner, "0");
+  const account = new Account({
+    provider,
+    address: contractAddress,
+    signer: owner,
+    cairoVersion: "0",
+  });
   const accountContract = await loadContract(account.address);
 
   return { account, accountContract, owner };
@@ -97,14 +130,18 @@ export async function deployOldAccount_v0_2_0_proxy(
   salt: bigint,
 ): Promise<string> {
   const owner = new KeyPair(process.env.PRIVATE_KEY!);
-  const deployer = new Account(provider, process.env.ADDRESS!, process.env.PRIVATE_KEY!);
+  const deployer = new Account({
+    provider,
+    address: process.env.ADDRESS!,
+    signer: process.env.PRIVATE_KEY!,
+  });
   const retrievedClassHash = num.toHex64(await provider.getClassHashAt(oldReadyAccountImplAddress));
   if (retrievedClassHash !== oldReadyAccountClassHash) {
     throw new Error("Implementation doesn't match");
   }
   const constructorCalldata = CallData.compile({ implementation: oldReadyAccountImplAddress });
 
-  const { calls, addresses } = transaction.buildUDCCall(
+  const { calls, addresses } = defaultDeployer.buildDeployerCall(
     {
       classHash: proxyClassHash,
       salt: num.toHex(salt),
