@@ -1,4 +1,4 @@
-import { Account, ETransactionVersion, TransactionType, num, stark } from "starknet";
+import { Account, ETransactionVersion, RpcProvider, TransactionType, num, stark } from "starknet";
 import {
   deployOldAccount_v0_2_0_proxy,
   deployOldAccount_v0_2_2,
@@ -25,7 +25,13 @@ import {
 
 const privateKey = process.env.PRIVATE_KEY!;
 const deployerAddress = process.env.ADDRESS!;
-const executorAccount = new Account(provider, deployerAddress, privateKey, "1", ETransactionVersion.V3);
+const executorAccount = new Account({
+  provider,
+  address: deployerAddress,
+  signer: privateKey,
+  cairoVersion: "1",
+  transactionVersion: ETransactionVersion.V3,
+});
 
 const salt = num.toBigInt(stark.randomAddress());
 
@@ -33,7 +39,7 @@ async function tryFund(address: string) {
   const balance = await getStrkBalance(address);
   console.log(`STRK balance: ${balance}`);
   if (balance === 0n) {
-    await sendStrk(address, 10n ** 16n);
+    await sendStrk(address, 10n ** 17n);
   }
 }
 
@@ -70,7 +76,13 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
     }
   } while (txHashOrMulticall);
 
-  const testAccount = new Account(provider, address, privateKey, "1", ETransactionVersion.V3);
+  const testAccount = new Account({
+    provider,
+    address,
+    signer: privateKey,
+    cairoVersion: "1",
+    transactionVersion: ETransactionVersion.V3,
+  });
   const classHash = num.toHex64(await provider.getClassHashAt(address));
   if (classHash !== v0_4_0_implementationClassHash) {
     throw new Error(`Unexpected class hash after upgrade: ${classHash}`);

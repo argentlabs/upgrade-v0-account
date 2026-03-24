@@ -6,7 +6,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "starknet": "7.6.4"
+    "starknet": "9.2.1"
   },
   "scripts": {
     "format": "bun prettier . --write",

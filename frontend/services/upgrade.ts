@@ -122,7 +122,7 @@ export async function verifyAccountOwnerAndGuardian(
 ) {
   const keyPair = new KeyPair(privateKey);
   const { abi } = await provider.getClassByHash(implementationClassHash);
-  const accountContract = new Contract(abi, accountAddress, provider);
+  const accountContract = new Contract({ abi, address: accountAddress, providerOrAccount: provider });
 
   logger.log("keyPair.pubKey", keyPair.publicKey);
 
@@ -210,7 +210,11 @@ export async function upgradeFrom_0_2_3(
   if (proxyType === ProxyType.NoProxy) {
     throw new Error("Old version must have a proxy");
   }
-  const accountToUpgrade = new Account(provider, accountAddress, privateKey);
+  const accountToUpgrade = new Account({
+    provider,
+    address: accountAddress,
+    signer: privateKey,
+  });
 
   const nonce = await provider.getNonceForAddress(accountAddress);
   logger.log("nonce", nonce);
@@ -251,7 +255,7 @@ export async function upgradeV0(
     throw new Error("v0.2.2 with old proxy is not supported");
   }
   const { abi } = await provider.getClassByHash(implementationClassHash);
-  const accountContract = new Contract(abi, accountAddress, provider);
+  const accountContract = new Contract({ abi, address: accountAddress, providerOrAccount: provider });
 
   const nonce = (await accountContract.get_nonce()).nonce;
   logger.log("nonce", nonce);
