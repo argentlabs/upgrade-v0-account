@@ -3,18 +3,18 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
+  "packageManager": "pnpm@10.32.1",
   "author": "",
   "license": "ISC",
   "dependencies": {
     "starknet": "9.2.1"
   },
   "scripts": {
-    "format": "bun prettier . --write",
-    "upgrade": "bun run ./scripts/upgrade-account.ts"
+    "format": "prettier . --write",
+    "upgrade": "ts-node --esm ./scripts/upgrade-account.ts"
   },
   "devDependencies": {
     "@tsconfig/node18": "^2.0.0",
-    "@types/bun": "latest",
     "@types/chai": "^4.3.4",
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^10.0.1",

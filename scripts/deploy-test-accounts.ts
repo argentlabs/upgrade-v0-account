@@ -43,8 +43,8 @@ async function tryFund(address: string) {
   }
 }
 
-async function upgrade(version: string, deployFn: () => Promise<string>) {
-  console.log(`Upgrading account version ${version}...`);
+async function deployAndUpgrade(versionFromName: string, deployFn: () => Promise<string>) {
+  console.log(`Deploying and then upgrading account version ${versionFromName}...`);
   const address = await deployFn();
 
   await tryFund(address);
@@ -104,7 +104,7 @@ async function upgrade(version: string, deployFn: () => Promise<string>) {
 }
 
 async function main() {
-  await upgrade("v0.2.0 old proxy", async () =>
+  await deployAndUpgrade("v0.2.0 old proxy", async () =>
     deployOldAccount_v0_2_0_proxy(
       v0_2_0_proxyClassHash,
       v0_2_0_implementationAddress,
@@ -112,7 +112,7 @@ async function main() {
       salt,
     ),
   );
-  await upgrade("v0.2.1 old proxy", async () =>
+  await deployAndUpgrade("v0.2.1 old proxy", async () =>
     deployOldAccount_v0_2_0_proxy(
       v0_2_0_proxyClassHash,
       v0_2_1_implementationAddress,
@@ -120,11 +120,11 @@ async function main() {
       salt,
     ),
   );
-  await upgrade("v0.2.2 new proxy", async () => {
+  await deployAndUpgrade("v0.2.2 new proxy", async () => {
     const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_2_2_implementationClassHash, salt);
     return account.address;
   });
-  await upgrade("v0.2.3.0 old proxy", async () =>
+  await deployAndUpgrade("v0.2.3.0 old proxy", async () =>
     deployOldAccount_v0_2_0_proxy(
       v0_2_0_proxyClassHash,
       v0_2_3_0_implementationAddress,
@@ -132,11 +132,11 @@ async function main() {
       salt,
     ),
   );
-  await upgrade("v0.2.3.0 new proxy", async () => {
+  await deployAndUpgrade("v0.2.3.0 new proxy", async () => {
     const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_2_3_0_implementationClassHash, salt);
     return account.address;
   });
-  await upgrade("v0.2.3.1 old proxy", async () =>
+  await deployAndUpgrade("v0.2.3.1 old proxy", async () =>
     deployOldAccount_v0_2_0_proxy(
       v0_2_0_proxyClassHash,
       v0_2_3_1_implementationAddress,
@@ -144,15 +144,15 @@ async function main() {
       salt,
     ),
   );
-  await upgrade("v0.2.3.1 new proxy", async () => {
+  await deployAndUpgrade("v0.2.3.1 new proxy", async () => {
     const { account } = await deployOldAccount_v0_2_2(v0_2_2_proxyClassHash, v0_2_3_1_implementationClassHash, salt);
     return account.address;
   });
-  await upgrade("v0.3.0 no proxy", async () => {
+  await deployAndUpgrade("v0.3.0 no proxy", async () => {
     const { account } = await deployOldAccount_v0_3(v0_3_0_implementationClassHash, salt);
     return account.address;
   });
-  await upgrade("v0.3.1 no proxy", async () => {
+  await deployAndUpgrade("v0.3.1 no proxy", async () => {
     const { account } = await deployOldAccount_v0_3(v0_3_1_implementationClassHash, salt);
     return account.address;
   });

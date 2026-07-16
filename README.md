@@ -5,12 +5,12 @@ NOTE: this only works on mainnet, V0 transactions have been disabled on the othe
 
 ## How?
 
-Install bun <https://bun.sh/docs/installation>
+Install pnpm <https://pnpm.io/installation>
 
 Run
 
 ```bash
-yarn install
+pnpm install
 ```
 
 Create a file name `.env` following the example in `.env.example`. Make sure you fill ADDRESS with the address of the account to upgrade, and PRIVATE_KEY with the private key controling that account.
@@ -24,7 +24,7 @@ source scripts/user-input.sh
 Then run
 
 ```bash
-bun run upgrade
+pnpm run upgrade
 ```
 
 It will output a transaction hash. You can go to your block explorer to see if the transaction succeeds

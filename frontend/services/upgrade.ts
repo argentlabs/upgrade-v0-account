@@ -188,18 +188,18 @@ export async function upgradeOldContract(
     case OldAccountVersion.v0_2_0:
     case OldAccountVersion.v0_2_1:
     case OldAccountVersion.v0_2_2:
-      return upgradeV0(logger, accountAddress, privateKey, implementationClassHash, accountProxyType, accountVersion);
+      return upgradeFromV0_2(logger, accountAddress, privateKey, implementationClassHash, accountProxyType, accountVersion);
     case OldAccountVersion.v0_2_3_0:
     case OldAccountVersion.v0_2_3_1:
-      return upgradeFrom_0_2_3(logger, accountAddress, privateKey, accountProxyType);
+      return upgradeFromV0_2_3(logger, accountAddress, privateKey, accountProxyType);
     case OldAccountVersion.v0_3_0:
     case OldAccountVersion.v0_3_1:
-      const upgrade_0_4_call = await upgrade_from_0_3_efo(logger, accountAddress, privateKey);
+      const upgrade_0_4_call = await upgradeFromV0_3(logger, accountAddress, privateKey);
       return upgrade_0_4_call;
   }
 }
 
-export async function upgradeFrom_0_2_3(
+export async function upgradeFromV0_2_3(
   logger: ILogger,
   accountAddress: string,
   privateKey: string,
@@ -238,7 +238,7 @@ export async function upgradeFrom_0_2_3(
   }
 }
 
-export async function upgradeV0(
+export async function upgradeFromV0_2(
   logger: ILogger,
   accountAddress: string,
   privateKey: string,
@@ -341,7 +341,7 @@ export async function upgradeV0(
   return upgrade_0_2_3_1_call;
 }
 
-export async function upgrade_from_0_3_efo(logger: ILogger, accountAddress: string, privateKey: string): Promise<Call> {
+export async function upgradeFromV0_3(logger: ILogger, accountAddress: string, privateKey: string): Promise<Call> {
   const outsideExec = {
     caller: shortString.encodeShortString("ANY_CALLER"),
     nonce: stark.randomAddress(),
