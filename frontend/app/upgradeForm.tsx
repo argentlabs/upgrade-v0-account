@@ -23,6 +23,13 @@ const UpgradeForm = () => {
   const [logs, setLogs] = useState<string[]>(["Ready to upgrade accounts..."]);
   const logBoxRef = useRef<HTMLDivElement>(null);
 
+  // The page is prerendered, so the form exists before React handles its submit event. A native
+  // submit at that point would send the fields as a GET request, putting the private key in the URL.
+  // The submit button stays disabled until hydration (which also blocks submitting with Enter), and
+  // the inputs carry no name attribute, so a native submit has nothing to send.
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
   // Auto-scroll to bottom when logs update
   useEffect(() => {
     if (logBoxRef.current) {
@@ -95,7 +102,7 @@ const UpgradeForm = () => {
                 <FormItem>
                   <FormLabel className="text-lg font-medium">Account Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="account address" {...field} />
+                    <Input placeholder="account address" {...field} name={undefined} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -113,7 +120,7 @@ const UpgradeForm = () => {
                     </button>
                   </div>
                   <FormControl>
-                    <Input placeholder="private key" {...field} />
+                    <Input placeholder="private key" {...field} name={undefined} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -121,7 +128,7 @@ const UpgradeForm = () => {
             />
           </div>
           <div className="flex justify-center">
-            <Button type="submit" className="mt-4">
+            <Button type="submit" className="mt-4" disabled={!isHydrated}>
               Upgrade Account
             </Button>
           </div>
