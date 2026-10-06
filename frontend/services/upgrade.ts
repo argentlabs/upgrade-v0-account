@@ -335,22 +335,17 @@ export async function upgradeFromV0_2(
     calldata: meta_tx_calldata,
   };
 
-  logVoyagerInstructions(logger, upgrade_0_2_3_1_call);
+  logPreparedCall(logger, upgrade_0_2_3_1_call);
 
   return upgrade_0_2_3_1_call;
 }
 
-// Steps for submitting a call from another funded account through Voyager's contract page.
-function logVoyagerInstructions(logger: ILogger, call: Call) {
-  logger.log(`1- Go to https://voyager.online/contract/${call.contractAddress}`);
-  logger.log(`2- Go to "Write Contract".`);
-  logger.log(`3- Connect with another funded account.`);
-  logger.log(`4- Expand "${call.entrypoint}" function.`);
-  logger.log(`5- Click "Raw".`);
-  logger.log(`6- Paste the following calldata:`);
-  logger.log((call.calldata as string[]).join(", "));
-  logger.log(`7- Click "Execute" and confirm on your wallet.`);
-  logger.log(`8- Restart upgrade after the transaction is confirmed.`);
+// Describes a call that another funded account has to send.
+function logPreparedCall(logger: ILogger, call: Call) {
+  logger.log(`This step has to be sent from another funded account.`);
+  logger.log(`Contract: ${call.contractAddress}`);
+  logger.log(`Entrypoint: ${call.entrypoint}`);
+  logger.log(`Calldata: ${(call.calldata as string[]).join(", ")}`);
 }
 
 export async function upgradeFromV0_3(logger: ILogger, accountAddress: string, privateKey: string): Promise<Call> {
@@ -374,7 +369,7 @@ export async function upgradeFromV0_3(logger: ILogger, accountAddress: string, p
     await provider.getChainId(),
   );
 
-  logVoyagerInstructions(logger, upgrade_0_4_call);
+  logPreparedCall(logger, upgrade_0_4_call);
 
   return upgrade_0_4_call;
 }

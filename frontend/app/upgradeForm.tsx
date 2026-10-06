@@ -82,7 +82,7 @@ const UpgradeForm = () => {
             );
           } else {
             setPendingStep({ call: transactionHashOrCall, accountAddress: values.address, id: Date.now() });
-            return <p className="text-sm">Next step prepared. Send it with another wallet below.</p>;
+            return <p className="text-sm">Next: use another account to upgrade, below.</p>;
           }
         },
         error: (err) => {

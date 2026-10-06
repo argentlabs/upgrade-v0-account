@@ -22,16 +22,21 @@ interface Check {
 
 type Phase = "idle" | "connecting" | "checking" | "ready" | "sending" | "confirming" | "done" | "error";
 
-function findInjectedWallets(): InjectedWallet[] {
+// Ready X registers as "argentX" and is used when several wallets are installed.
+const preferredWalletId = "argentX";
+
+// Wallets inject themselves as window.starknet and window.starknet_<id>. Some define these as
+// non-enumerable properties, so Object.keys(window) would miss them.
+function findInjectedWallet(): InjectedWallet | undefined {
   const wallets = new Map<string, InjectedWallet>();
-  for (const key of Object.keys(window)) {
+  for (const key of Object.getOwnPropertyNames(window)) {
     if (!key.startsWith("starknet")) continue;
     const candidate = (window as any)[key];
     if (candidate && typeof candidate.request === "function" && typeof candidate.id === "string") {
       wallets.set(candidate.id, candidate);
     }
   }
-  return [...wallets.values()];
+  return wallets.get(preferredWalletId) ?? wallets.values().next().value;
 }
 
 function formatStrk(amount: bigint): string {
@@ -47,7 +52,6 @@ export const SendFromWallet = ({ preparedCall, accountAddress }: { preparedCall:
     ...preparedCall,
     calldata: (preparedCall.calldata as string[]).map((value) => num.toHex(value)),
   };
-  const [wallets, setWallets] = useState<InjectedWallet[]>(() => findInjectedWallets());
   const [walletAccount, setWalletAccount] = useState<WalletAccount | null>(null);
   const [checks, setChecks] = useState<Check[]>([]);
   const allChecksPassed = checks.length > 0 && checks.every((check) => check.passed);
@@ -112,10 +116,16 @@ export const SendFromWallet = ({ preparedCall, accountAddress }: { preparedCall:
     setPhase(results.every((check) => check.passed) ? "ready" : "error");
   };
 
-  const connect = async (injectedWallet: InjectedWallet) => {
-    setPhase("connecting");
+  const connect = async () => {
     setMessage("");
     setChecks([]);
+    const injectedWallet = findInjectedWallet();
+    if (!injectedWallet) {
+      setPhase("error");
+      setMessage("No Starknet wallet extension was found in this browser.");
+      return;
+    }
+    setPhase("connecting");
     try {
       const connectedAccount = await WalletAccount.connect(provider, injectedWallet as any);
       setWalletAccount(connectedAccount);
@@ -149,38 +159,16 @@ export const SendFromWallet = ({ preparedCall, accountAddress }: { preparedCall:
 
   return (
     <div className="font-barlow border border-[#FF875B] p-5 rounded-lg shadow-lg bg-white mt-5">
-      <h3 className="text-lg font-medium mb-2">Send this step with another wallet</h3>
+      <h3 className="text-lg font-medium mb-2">Use another account to upgrade</h3>
       <p className="text-sm text-gray-700 mb-3">
-        This step has to be sent and paid for by a different Starknet account that holds some STRK. Connect a wallet
-        with such an account. The wallet only receives the prepared call shown below; the private key you entered above
-        is never shared with it.
-      </p>
-      <p className="text-sm text-gray-700 mb-3 break-all">
-        Account being upgraded: <span className="font-mono">{accountAddress}</span>
-        <br />
-        Call: <span className="font-mono">{call.entrypoint}</span> on{" "}
-        <span className="font-mono">{call.contractAddress}</span>
+        This step has to be sent from a different Starknet account. Connect a wallet with that account. The private key
+        you entered above is never shared with the wallet.
       </p>
 
       {!walletAccount && (
-        <div className="flex flex-wrap gap-2 items-center">
-          {wallets.map((injectedWallet) => (
-            <Button
-              key={injectedWallet.id}
-              type="button"
-              onClick={() => connect(injectedWallet)}
-              disabled={phase === "connecting"}
-            >
-              Connect {injectedWallet.name}
-            </Button>
-          ))}
-          {wallets.length === 0 && (
-            <p className="text-sm text-gray-700">No Starknet wallet extension was found in this browser.</p>
-          )}
-          <button type="button" className="text-sm underline" onClick={() => setWallets(findInjectedWallets())}>
-            Refresh wallet list
-          </button>
-        </div>
+        <Button type="button" onClick={connect} disabled={phase === "connecting"}>
+          Connect wallet
+        </Button>
       )}
 
       {walletAccount && (
@@ -238,7 +226,7 @@ export const SendFromWallet = ({ preparedCall, accountAddress }: { preparedCall:
             setMessage("");
           }}
         >
-          Connect a different wallet
+          Connect wallet again
         </Button>
       )}
     </div>
