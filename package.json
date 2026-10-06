@@ -17,17 +17,19 @@
     "@tsconfig/node18": "^2.0.0",
     "@types/chai": "^4.3.4",
     "@types/chai-as-promised": "^7.1.5",
-    "@types/mocha": "^10.0.1",
     "@types/node": "^18.15.11",
     "@typescript-eslint/typescript-estree": "latest",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
     "dotenv": "^16.3.1",
-    "mocha": "^10.2.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.2",
-    "ts-node": "^10.9.1",
     "tsx": "^4.23.15",
     "typescript": "^5.1.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@^5": "^5.0.12"
+    }
   }
 }
