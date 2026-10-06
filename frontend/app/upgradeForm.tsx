@@ -34,7 +34,17 @@ const UpgradeForm = () => {
   useEffect(() => setIsHydrated(true), []);
 
   // A prepared call that another account has to send (the meta-transaction or outside-execution step).
-  const [pendingStep, setPendingStep] = useState<{ call: Call; accountAddress: string; id: number } | null>(null);
+  const [pendingStep, setPendingStep] = useState<{
+    call: Call;
+    accountAddress: string;
+    id: number;
+    isConfirmed: boolean;
+  } | null>(null);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  // The form is locked while an upgrade runs and while a step waits to be sent from another account,
+  // so the only action available is the one that moves the upgrade forward.
+  const isStepPending = pendingStep !== null && !pendingStep.isConfirmed;
+  const isFormLocked = isUpgrading || isStepPending;
 
   // Auto-scroll to bottom when logs update
   useEffect(() => {
@@ -64,9 +74,15 @@ const UpgradeForm = () => {
     toast.dismiss();
     setLogs(["Starting upgrade process..."]);
     setPendingStep(null);
+    setIsUpgrading(true);
 
+    const upgrade = upgradeOldContract(logger, values.address, values.privateKey);
+    upgrade.then(
+      () => setIsUpgrading(false),
+      () => setIsUpgrading(false),
+    );
     toast.promise(
-      upgradeOldContract(logger, values.address, values.privateKey),
+      upgrade,
       {
         loading: `Upgrading account: ${values.address.slice(0, 5) + "..." + values.address.slice(-4)}`,
         success: (transactionHashOrCall) => {
@@ -81,7 +97,12 @@ const UpgradeForm = () => {
               </a>
             );
           } else {
-            setPendingStep({ call: transactionHashOrCall, accountAddress: values.address, id: Date.now() });
+            setPendingStep({
+              call: transactionHashOrCall,
+              accountAddress: values.address,
+              id: Date.now(),
+              isConfirmed: false,
+            });
             return <p className="text-sm">Next: use another account to upgrade, below.</p>;
           }
         },
@@ -110,7 +131,7 @@ const UpgradeForm = () => {
                 <FormItem>
                   <FormLabel className="text-lg font-medium">Account Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="account address" {...field} name={undefined} />
+                    <Input placeholder="account address" {...field} name={undefined} disabled={isFormLocked} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -128,7 +149,7 @@ const UpgradeForm = () => {
                     </button>
                   </div>
                   <FormControl>
-                    <Input placeholder="private key" {...field} name={undefined} />
+                    <Input placeholder="private key" {...field} name={undefined} disabled={isFormLocked} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -136,11 +157,13 @@ const UpgradeForm = () => {
             />
           </div>
           <div className="flex justify-center">
-            <Button type="submit" className="mt-4" disabled={!isHydrated}>
+            <Button type="submit" className="mt-4" disabled={!isHydrated || isFormLocked}>
               Upgrade Account
             </Button>
           </div>
-          <div className="flex justify-center"></div>
+          {isStepPending && (
+            <p className="text-sm text-gray-600 text-center mt-2">Finish the step below to continue.</p>
+          )}
         </form>
       </Form>
 
@@ -149,6 +172,8 @@ const UpgradeForm = () => {
           key={pendingStep.id}
           preparedCall={pendingStep.call}
           accountAddress={pendingStep.accountAddress}
+          onConfirmed={() => setPendingStep((step) => (step ? { ...step, isConfirmed: true } : step))}
+          onCancel={() => setPendingStep(null)}
         />
       )}
 

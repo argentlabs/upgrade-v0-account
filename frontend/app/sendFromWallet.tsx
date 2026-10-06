@@ -46,7 +46,17 @@ function formatStrk(amount: bigint): string {
 // Sends a prepared call (for example the step that upgrades an old account) from another account the user
 // controls in a browser wallet. Fees for this call cannot be estimated (a fee query changes the hash the old
 // account checks), so the page verifies the call by simulation before handing it to the wallet.
-export const SendFromWallet = ({ preparedCall, accountAddress }: { preparedCall: Call; accountAddress: string }) => {
+export const SendFromWallet = ({
+  preparedCall,
+  accountAddress,
+  onConfirmed,
+  onCancel,
+}: {
+  preparedCall: Call;
+  accountAddress: string;
+  onConfirmed: () => void;
+  onCancel: () => void;
+}) => {
   // The wallet API expects calldata as hex felts.
   const call: Call = {
     ...preparedCall,
@@ -151,6 +161,7 @@ export const SendFromWallet = ({ preparedCall, accountAddress }: { preparedCall:
         return;
       }
       setPhase("done");
+      onConfirmed();
     } catch (error) {
       setPhase("error");
       setMessage(error instanceof Error ? error.message : String(error));
@@ -228,6 +239,13 @@ export const SendFromWallet = ({ preparedCall, accountAddress }: { preparedCall:
         >
           Connect wallet again
         </Button>
+      )}
+      {phase !== "sending" && phase !== "confirming" && phase !== "done" && (
+        <div className="mt-3">
+          <button type="button" className="text-sm underline text-gray-600" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
       )}
     </div>
   );
