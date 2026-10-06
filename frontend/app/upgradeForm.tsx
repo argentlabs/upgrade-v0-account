@@ -174,6 +174,7 @@ const UpgradeForm = () => {
           accountAddress={pendingStep.accountAddress}
           onConfirmed={() => setPendingStep((step) => (step ? { ...step, isConfirmed: true } : step))}
           onCancel={() => setPendingStep(null)}
+          logger={logger}
         />
       )}
 

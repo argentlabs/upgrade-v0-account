@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Account, Call, constants, num, TransactionType, WalletAccount, wallet } from "starknet";
 
 import { Button } from "@/components/ui/button";
-import { getStrkBalance, provider } from "@/services";
+import { provider } from "@/services";
 
 // Minimal shape of the wallet object a Starknet browser extension injects as window.starknet_<id>.
 interface InjectedWallet {
@@ -14,10 +14,8 @@ interface InjectedWallet {
   on: (...args: any[]) => void;
 }
 
-interface Check {
-  label: string;
-  passed: boolean;
-  detail?: string;
+interface Logger {
+  log: (...args: any[]) => void;
 }
 
 type Phase = "idle" | "connecting" | "checking" | "ready" | "sending" | "confirming" | "done" | "error";
@@ -39,21 +37,24 @@ function findInjectedWallet(): InjectedWallet | undefined {
   return wallets.get(preferredWalletId) ?? wallets.values().next().value;
 }
 
-function formatStrk(amount: bigint): string {
-  return (Number(amount) / 1e18).toFixed(4);
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 // Sends a prepared call (for example the step that upgrades an old account) from another account the user
 // controls in a browser wallet. Fees for this call cannot be estimated (a fee query changes the hash the old
-// account checks), so the page verifies the call by simulation before handing it to the wallet.
+// account checks), so the page verifies the call by simulation before handing it to the wallet. Details of any
+// failure go to the logs; the panel only asks the user to share them.
 export const SendFromWallet = ({
   preparedCall,
   accountAddress,
+  logger,
   onConfirmed,
   onCancel,
 }: {
   preparedCall: Call;
   accountAddress: string;
+  logger: Logger;
   onConfirmed: () => void;
   onCancel: () => void;
 }) => {
@@ -63,76 +64,51 @@ export const SendFromWallet = ({
     calldata: (preparedCall.calldata as string[]).map((value) => num.toHex(value)),
   };
   const [walletAccount, setWalletAccount] = useState<WalletAccount | null>(null);
-  const [checks, setChecks] = useState<Check[]>([]);
-  const allChecksPassed = checks.length > 0 && checks.every((check) => check.passed);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [message, setMessage] = useState<string>("");
+  const [canRetrySend, setCanRetrySend] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string>("");
+
+  const fail = (reason: string) => {
+    logger.log(`Another account step failed: ${reason}`);
+    setPhase("error");
+  };
 
   const runChecks = async (connectedAccount: WalletAccount, injectedWallet: InjectedWallet) => {
     setPhase("checking");
-    const results: Check[] = [];
+    logger.log(`Connected account: ${connectedAccount.address}`);
 
     const chainId = await wallet.requestChainId(injectedWallet as any);
-    const isMainnet = BigInt(chainId) === BigInt(constants.StarknetChainId.SN_MAIN);
-    results.push({
-      label: "Wallet is on Starknet mainnet",
-      passed: isMainnet,
-      detail: isMainnet ? undefined : "Switch the wallet to Starknet mainnet and connect again.",
-    });
-
-    const isOtherAccount = BigInt(connectedAccount.address) !== BigInt(accountAddress);
-    results.push({
-      label: "Connected account is not the account being upgraded",
-      passed: isOtherAccount,
-      detail: isOtherAccount
-        ? undefined
-        : "Select a different account in the wallet: the old account cannot pay for this step.",
-    });
-
-    let maximumFee = 0n;
-    if (isMainnet && isOtherAccount) {
-      try {
-        // Same call, simulated from the connected account without its signature.
-        const simulationAccount = new Account({ provider, address: connectedAccount.address, signer: "0x1" });
-        const [simulation] = await simulationAccount.simulateTransaction([
-          { type: TransactionType.INVOKE, payload: call },
-        ]);
-        const revertReason = (simulation.transaction_trace as any).execute_invocation?.revert_reason;
-        maximumFee = BigInt(simulation.overall_fee);
-        results.push({
-          label: "The call succeeds when simulated from this account",
-          passed: !revertReason,
-          detail: revertReason ? `Simulation reverted: ${revertReason}` : undefined,
-        });
-      } catch (error) {
-        results.push({
-          label: "The call succeeds when simulated from this account",
-          passed: false,
-          detail: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      const balance = await getStrkBalance(connectedAccount.address);
-      const hasFunds = maximumFee > 0n && balance >= maximumFee;
-      results.push({
-        label: `Account holds enough STRK for the fee (up to ${formatStrk(maximumFee)} STRK)`,
-        passed: hasFunds,
-        detail: hasFunds ? undefined : `Balance is ${formatStrk(balance)} STRK.`,
-      });
+    if (BigInt(chainId) !== BigInt(constants.StarknetChainId.SN_MAIN)) {
+      fail(`the wallet is on chain ${chainId}, not Starknet mainnet. Switch the wallet to mainnet and connect again.`);
+      return;
     }
-
-    setChecks(results);
-    setPhase(results.every((check) => check.passed) ? "ready" : "error");
+    if (BigInt(connectedAccount.address) === BigInt(accountAddress)) {
+      fail("the connected account is the account being upgraded. Select a different account in the wallet.");
+      return;
+    }
+    try {
+      // Same call, simulated from the connected account without its signature.
+      const simulationAccount = new Account({ provider, address: connectedAccount.address, signer: "0x1" });
+      const [simulation] = await simulationAccount.simulateTransaction([
+        { type: TransactionType.INVOKE, payload: call },
+      ]);
+      const revertReason = (simulation.transaction_trace as any).execute_invocation?.revert_reason;
+      if (revertReason) {
+        fail(`simulating the call from the connected account reverted: ${revertReason}`);
+        return;
+      }
+    } catch (error) {
+      fail(`simulating the call from the connected account failed: ${errorMessage(error)}`);
+      return;
+    }
+    logger.log("Checks passed: mainnet, a different account, and the call succeeds in simulation.");
+    setPhase("ready");
   };
 
   const connect = async () => {
-    setMessage("");
-    setChecks([]);
     const injectedWallet = findInjectedWallet();
     if (!injectedWallet) {
-      setPhase("error");
-      setMessage("No Starknet wallet extension was found in this browser.");
+      fail("no Starknet wallet extension was found in this browser.");
       return;
     }
     setPhase("connecting");
@@ -141,30 +117,32 @@ export const SendFromWallet = ({
       setWalletAccount(connectedAccount);
       await runChecks(connectedAccount, injectedWallet);
     } catch (error) {
-      setPhase("error");
-      setMessage(error instanceof Error ? error.message : String(error));
+      fail(`connecting the wallet failed: ${errorMessage(error)}`);
     }
   };
 
   const send = async () => {
     if (!walletAccount) return;
     setPhase("sending");
-    setMessage("");
+    setCanRetrySend(false);
+    let sentTransactionHash = "";
     try {
       const { transaction_hash } = await walletAccount.execute([call]);
+      sentTransactionHash = transaction_hash;
       setTransactionHash(transaction_hash);
+      logger.log(`Transaction sent: ${transaction_hash}`);
       setPhase("confirming");
       const receipt = await provider.waitForTransaction(transaction_hash);
       if (!receipt.isSuccess()) {
-        setPhase("error");
-        setMessage("The transaction was included but did not succeed. Open it on Voyager for details.");
+        fail(`transaction ${transaction_hash} was included but did not succeed: ${JSON.stringify(receipt.value)}`);
         return;
       }
+      logger.log(`Transaction confirmed: ${transaction_hash}`);
       setPhase("done");
       onConfirmed();
     } catch (error) {
-      setPhase("error");
-      setMessage(error instanceof Error ? error.message : String(error));
+      if (!sentTransactionHash) setCanRetrySend(true);
+      fail(`sending the transaction failed: ${errorMessage(error)}`);
     }
   };
 
@@ -189,18 +167,7 @@ export const SendFromWallet = ({
       )}
 
       {phase === "checking" && <p className="text-sm">Checking the connected account...</p>}
-      {checks.length > 0 && (
-        <ul className="text-sm mb-3">
-          {checks.map((check) => (
-            <li key={check.label}>
-              {check.passed ? "✅" : "❌"} {check.label}
-              {check.detail && <div className="text-gray-600 ml-6 break-all">{check.detail}</div>}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {(phase === "ready" || (phase === "error" && allChecksPassed && !transactionHash)) && (
+      {(phase === "ready" || (phase === "error" && canRetrySend)) && (
         <Button type="button" className="mr-2" onClick={send}>
           Send with connected wallet
         </Button>
@@ -225,16 +192,17 @@ export const SendFromWallet = ({
           Confirmed. Click &quot;Upgrade Account&quot; again to continue with the next step.
         </p>
       )}
-      {phase === "error" && message && <p className="text-sm text-red-600 break-all">{message}</p>}
+      {phase === "error" && (
+        <p className="text-sm text-red-600 mt-2">Something went wrong. Please share the logs below with us.</p>
+      )}
       {walletAccount && phase === "error" && (
         <Button
           type="button"
           className="mt-2"
           onClick={() => {
             setWalletAccount(null);
-            setChecks([]);
+            setCanRetrySend(false);
             setPhase("idle");
-            setMessage("");
           }}
         >
           Connect wallet again
