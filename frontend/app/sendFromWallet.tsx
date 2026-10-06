@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Account, Call, constants, hash, num, shortString, TransactionType, WalletAccount, wallet } from "starknet";
+import { Call, constants, hash, num, WalletAccount, wallet } from "starknet";
 
 import { Button } from "@/components/ui/button";
 import { provider } from "@/services";
@@ -51,26 +51,10 @@ async function accountSnapshot(accountAddress: string): Promise<string> {
   return `${num.toHex(classHash)}:${num.toHex(implementation)}`;
 }
 
-// The meta-transaction helper returns a failing inner call as data instead of reverting, so a
-// simulation can "succeed" without doing anything. These are the readable error strings it returned.
-function innerCallErrors(invocation: any, errors: string[] = []): string[] {
-  if (!invocation) return errors;
-  for (const felt of invocation.result ?? []) {
-    try {
-      const text = shortString.decodeShortString(felt);
-      if (/^[A-Za-z][\x20-\x7e]{3,}$/.test(text) && !errors.includes(text)) errors.push(text);
-    } catch {
-      // not a short string
-    }
-  }
-  for (const inner of invocation.calls ?? []) innerCallErrors(inner, errors);
-  return errors;
-}
-
 // Sends a prepared call (for example the step that upgrades an old account) from another account the user
-// controls in a browser wallet. Fees for this call cannot be estimated (a fee query changes the hash the old
-// account checks), so the page verifies the call by simulation before handing it to the wallet. Details of any
-// failure go to the logs; the panel only asks the user to share them.
+// controls in a browser wallet. The meta-transaction helper returns a failing inner call as data instead of
+// reverting, so a confirmed transaction only counts once the account being upgraded has actually changed.
+// Details of any failure go to the logs; the panel only asks the user to share them.
 export const SendFromWallet = ({
   preparedCall,
   accountAddress,
@@ -112,38 +96,7 @@ export const SendFromWallet = ({
       fail("the connected account is the account being upgraded. Select a different account in the wallet.");
       return;
     }
-    try {
-      // Same call, simulated from the connected account without its signature.
-      const simulationAccount = new Account({ provider, address: connectedAccount.address, signer: "0x1" });
-      const [simulation] = await simulationAccount.simulateTransaction([
-        { type: TransactionType.INVOKE, payload: call },
-      ]);
-      const trace = simulation.transaction_trace as any;
-      const revertReason = trace.execute_invocation?.revert_reason;
-      if (revertReason) {
-        fail(`simulating the call from the connected account reverted: ${revertReason}`);
-        return;
-      }
-      const stateDiff = trace.state_diff ?? {};
-      const changesAccount =
-        (stateDiff.storage_diffs ?? []).some((entry: any) => BigInt(entry.address) === BigInt(accountAddress)) ||
-        (stateDiff.replaced_classes ?? []).some(
-          (entry: any) => BigInt(entry.contract_address) === BigInt(accountAddress),
-        );
-      if (!changesAccount) {
-        const errors = innerCallErrors(trace.execute_invocation);
-        fail(
-          "simulating the call from the connected account does not change the account being upgraded" +
-            (errors.length ? ` (inner call: ${errors.join(", ")})` : "") +
-            ". The step may already have been sent.",
-        );
-        return;
-      }
-    } catch (error) {
-      fail(`simulating the call from the connected account failed: ${errorMessage(error)}`);
-      return;
-    }
-    logger.log("Checks passed: mainnet, a different account, and the call upgrades the account in simulation.");
+    logger.log("Checks passed: mainnet and a different account.");
     setPhase("ready");
   };
 
