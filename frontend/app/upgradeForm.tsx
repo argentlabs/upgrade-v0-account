@@ -10,7 +10,10 @@ import { CiCircleInfo } from "react-icons/ci";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Call } from "starknet";
+
 import { InfoModal } from "./infoModal";
+import { SendFromWallet } from "./sendFromWallet";
 import { upgradeOldContract } from "@/services";
 
 const formSchema = z.object({
@@ -22,6 +25,26 @@ const UpgradeForm = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [logs, setLogs] = useState<string[]>(["Ready to upgrade accounts..."]);
   const logBoxRef = useRef<HTMLDivElement>(null);
+
+  // The page is prerendered, so the form exists before React handles its submit event. A native
+  // submit at that point would send the fields as a GET request, putting the private key in the URL.
+  // The submit button stays disabled until hydration (which also blocks submitting with Enter), and
+  // the inputs carry no name attribute, so a native submit has nothing to send.
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  // A prepared call that another account has to send (the meta-transaction or outside-execution step).
+  const [pendingStep, setPendingStep] = useState<{
+    call: Call;
+    accountAddress: string;
+    id: number;
+    isConfirmed: boolean;
+  } | null>(null);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  // The form is locked while an upgrade runs and while a step waits to be sent from another account,
+  // so the only action available is the one that moves the upgrade forward.
+  const isStepPending = pendingStep !== null && !pendingStep.isConfirmed;
+  const isFormLocked = isUpgrading || isStepPending;
 
   // Auto-scroll to bottom when logs update
   useEffect(() => {
@@ -50,9 +73,16 @@ const UpgradeForm = () => {
   const upgradeButtonSubmit = async (values: z.infer<typeof formSchema>) => {
     toast.dismiss();
     setLogs(["Starting upgrade process..."]);
+    setPendingStep(null);
+    setIsUpgrading(true);
 
+    const upgrade = upgradeOldContract(logger, values.address, values.privateKey);
+    upgrade.then(
+      () => setIsUpgrading(false),
+      () => setIsUpgrading(false),
+    );
     toast.promise(
-      upgradeOldContract(logger, values.address, values.privateKey),
+      upgrade,
       {
         loading: `Upgrading account: ${values.address.slice(0, 5) + "..." + values.address.slice(-4)}`,
         success: (transactionHashOrCall) => {
@@ -67,7 +97,13 @@ const UpgradeForm = () => {
               </a>
             );
           } else {
-            return <></>;
+            setPendingStep({
+              call: transactionHashOrCall,
+              accountAddress: values.address,
+              id: Date.now(),
+              isConfirmed: false,
+            });
+            return <p className="text-sm">Next: use another account to upgrade, below.</p>;
           }
         },
         error: (err) => {
@@ -95,7 +131,7 @@ const UpgradeForm = () => {
                 <FormItem>
                   <FormLabel className="text-lg font-medium">Account Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="account address" {...field} />
+                    <Input placeholder="account address" {...field} name={undefined} disabled={isFormLocked} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -113,7 +149,7 @@ const UpgradeForm = () => {
                     </button>
                   </div>
                   <FormControl>
-                    <Input placeholder="private key" {...field} />
+                    <Input placeholder="private key" {...field} name={undefined} disabled={isFormLocked} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -121,13 +157,26 @@ const UpgradeForm = () => {
             />
           </div>
           <div className="flex justify-center">
-            <Button type="submit" className="mt-4">
+            <Button type="submit" className="mt-4" disabled={!isHydrated || isFormLocked}>
               Upgrade Account
             </Button>
           </div>
-          <div className="flex justify-center"></div>
+          {isStepPending && (
+            <p className="text-sm text-gray-600 text-center mt-2">Finish the step below to continue.</p>
+          )}
         </form>
       </Form>
+
+      {pendingStep && (
+        <SendFromWallet
+          key={pendingStep.id}
+          preparedCall={pendingStep.call}
+          accountAddress={pendingStep.accountAddress}
+          onConfirmed={() => setPendingStep((step) => (step ? { ...step, isConfirmed: true } : step))}
+          onCancel={() => setPendingStep(null)}
+          logger={logger}
+        />
+      )}
 
       {/* Log Box */}
       <div className="font-barlow border border-[#FF875B] p-5 rounded-lg shadow-lg bg-white mt-5">

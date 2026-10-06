@@ -19,8 +19,61 @@ import {
 import dotenv from "dotenv";
 dotenv.config({ override: true });
 
+// Keyless public mainnet endpoints that serve RPC spec 0.10 and allow browser (CORS) requests.
+// The page used to depend on a single provider and broke for everyone when it was discontinued,
+// so requests fail over to the next endpoint when one is down.
+export const rpcUrls = [
+  "https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_10/demo",
+  "https://starknet-rpc.publicnode.com",
+  "https://api.cartridge.gg/x/starknet/mainnet",
+];
+
+let preferredRpcIndex = 0;
+
+// An endpoint that accepts the connection but never answers would otherwise stall the page.
+const rpcAttemptTimeoutMs = 10_000;
+
+// The timer only covers waiting for the response headers, so a large body that is still
+// downloading when starknet.js reads it is not aborted.
+async function fetchWithTimeout(rpcUrl: string, init?: RequestInit): Promise<Response> {
+  const abortController = new AbortController();
+  const timer = setTimeout(
+    () => abortController.abort(new Error(`${rpcUrl} did not answer within ${rpcAttemptTimeoutMs} ms`)),
+    rpcAttemptTimeoutMs,
+  );
+  try {
+    return await fetch(rpcUrl, { ...init, signal: abortController.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Only network failures, timeouts and non-2xx responses (rate limits, discontinued endpoints) move to
+// the next endpoint. A JSON-RPC error such as a revert is returned as is, since every node would give
+// the same answer.
+async function fetchWithFailover(_nodeUrl: string | URL | Request, init?: RequestInit): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < rpcUrls.length; attempt++) {
+    const rpcIndex = (preferredRpcIndex + attempt) % rpcUrls.length;
+    try {
+      const response = await fetchWithTimeout(rpcUrls[rpcIndex], init);
+      if (response.ok) {
+        preferredRpcIndex = rpcIndex;
+        return response;
+      }
+      lastError = new Error(`${rpcUrls[rpcIndex]} answered HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    console.warn(`RPC ${rpcUrls[rpcIndex]} failed, trying the next one`, lastError);
+  }
+  throw lastError;
+}
+
 export const provider = new RpcProvider({
-  nodeUrl: "https://rpc.starknet.lava.build/rpc/v0_10",
+  nodeUrl: rpcUrls[0],
+  specVersion: "0.10.0",
+  baseFetch: fetchWithFailover,
 });
 
 export const strkAddress = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
