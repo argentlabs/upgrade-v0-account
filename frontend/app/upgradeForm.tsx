@@ -10,7 +10,10 @@ import { CiCircleInfo } from "react-icons/ci";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Call } from "starknet";
+
 import { InfoModal } from "./infoModal";
+import { SendFromWallet } from "./sendFromWallet";
 import { upgradeOldContract } from "@/services";
 
 const formSchema = z.object({
@@ -29,6 +32,9 @@ const UpgradeForm = () => {
   // the inputs carry no name attribute, so a native submit has nothing to send.
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
+
+  // A prepared call that another account has to send (the meta-transaction or outside-execution step).
+  const [pendingStep, setPendingStep] = useState<{ call: Call; accountAddress: string; id: number } | null>(null);
 
   // Auto-scroll to bottom when logs update
   useEffect(() => {
@@ -57,6 +63,7 @@ const UpgradeForm = () => {
   const upgradeButtonSubmit = async (values: z.infer<typeof formSchema>) => {
     toast.dismiss();
     setLogs(["Starting upgrade process..."]);
+    setPendingStep(null);
 
     toast.promise(
       upgradeOldContract(logger, values.address, values.privateKey),
@@ -74,7 +81,8 @@ const UpgradeForm = () => {
               </a>
             );
           } else {
-            return <></>;
+            setPendingStep({ call: transactionHashOrCall, accountAddress: values.address, id: Date.now() });
+            return <p className="text-sm">Next step prepared. Send it with another wallet below.</p>;
           }
         },
         error: (err) => {
@@ -135,6 +143,14 @@ const UpgradeForm = () => {
           <div className="flex justify-center"></div>
         </form>
       </Form>
+
+      {pendingStep && (
+        <SendFromWallet
+          key={pendingStep.id}
+          preparedCall={pendingStep.call}
+          accountAddress={pendingStep.accountAddress}
+        />
+      )}
 
       {/* Log Box */}
       <div className="font-barlow border border-[#FF875B] p-5 rounded-lg shadow-lg bg-white mt-5">
