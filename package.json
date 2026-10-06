@@ -11,7 +11,7 @@
   },
   "scripts": {
     "format": "prettier . --write",
-    "upgrade": "ts-node --esm ./scripts/upgrade-account.ts"
+    "upgrade": "tsx ./scripts/upgrade-account.ts"
   },
   "devDependencies": {
     "@tsconfig/node18": "^2.0.0",
@@ -27,6 +27,7 @@
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.2",
     "ts-node": "^10.9.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.1.6"
   }
 }
