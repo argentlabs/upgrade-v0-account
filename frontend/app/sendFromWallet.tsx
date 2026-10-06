@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Account, Call, constants, num, TransactionType, WalletAccount, wallet } from "starknet";
+import { Account, Call, constants, hash, num, shortString, TransactionType, WalletAccount, wallet } from "starknet";
 
 import { Button } from "@/components/ui/button";
 import { provider } from "@/services";
@@ -39,6 +39,32 @@ function findInjectedWallet(): InjectedWallet | undefined {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+// Storage slot of the implementation in the Cairo 0 proxies old accounts use.
+const proxyImplementationSlot = num.toHex(hash.starknetKeccak("_implementation"));
+
+// The account's class and proxy implementation; an upgrade step changes one of them.
+async function accountSnapshot(accountAddress: string): Promise<string> {
+  const classHash = await provider.getClassHashAt(accountAddress);
+  const implementation = await provider.getStorageAt(accountAddress, proxyImplementationSlot);
+  return `${num.toHex(classHash)}:${num.toHex(implementation)}`;
+}
+
+// The meta-transaction helper returns a failing inner call as data instead of reverting, so a
+// simulation can "succeed" without doing anything. These are the readable error strings it returned.
+function innerCallErrors(invocation: any, errors: string[] = []): string[] {
+  if (!invocation) return errors;
+  for (const felt of invocation.result ?? []) {
+    try {
+      const text = shortString.decodeShortString(felt);
+      if (/^[A-Za-z][\x20-\x7e]{3,}$/.test(text) && !errors.includes(text)) errors.push(text);
+    } catch {
+      // not a short string
+    }
+  }
+  for (const inner of invocation.calls ?? []) innerCallErrors(inner, errors);
+  return errors;
 }
 
 // Sends a prepared call (for example the step that upgrades an old account) from another account the user
@@ -92,16 +118,32 @@ export const SendFromWallet = ({
       const [simulation] = await simulationAccount.simulateTransaction([
         { type: TransactionType.INVOKE, payload: call },
       ]);
-      const revertReason = (simulation.transaction_trace as any).execute_invocation?.revert_reason;
+      const trace = simulation.transaction_trace as any;
+      const revertReason = trace.execute_invocation?.revert_reason;
       if (revertReason) {
         fail(`simulating the call from the connected account reverted: ${revertReason}`);
+        return;
+      }
+      const stateDiff = trace.state_diff ?? {};
+      const changesAccount =
+        (stateDiff.storage_diffs ?? []).some((entry: any) => BigInt(entry.address) === BigInt(accountAddress)) ||
+        (stateDiff.replaced_classes ?? []).some(
+          (entry: any) => BigInt(entry.contract_address) === BigInt(accountAddress),
+        );
+      if (!changesAccount) {
+        const errors = innerCallErrors(trace.execute_invocation);
+        fail(
+          "simulating the call from the connected account does not change the account being upgraded" +
+            (errors.length ? ` (inner call: ${errors.join(", ")})` : "") +
+            ". The step may already have been sent.",
+        );
         return;
       }
     } catch (error) {
       fail(`simulating the call from the connected account failed: ${errorMessage(error)}`);
       return;
     }
-    logger.log("Checks passed: mainnet, a different account, and the call succeeds in simulation.");
+    logger.log("Checks passed: mainnet, a different account, and the call upgrades the account in simulation.");
     setPhase("ready");
   };
 
@@ -127,6 +169,7 @@ export const SendFromWallet = ({
     setCanRetrySend(false);
     let sentTransactionHash = "";
     try {
+      const snapshotBefore = await accountSnapshot(accountAddress);
       const { transaction_hash } = await walletAccount.execute([call]);
       sentTransactionHash = transaction_hash;
       setTransactionHash(transaction_hash);
@@ -135,6 +178,10 @@ export const SendFromWallet = ({
       const receipt = await provider.waitForTransaction(transaction_hash);
       if (!receipt.isSuccess()) {
         fail(`transaction ${transaction_hash} was included but did not succeed: ${JSON.stringify(receipt.value)}`);
+        return;
+      }
+      if ((await accountSnapshot(accountAddress)) === snapshotBefore) {
+        fail(`transaction ${transaction_hash} was confirmed but the account being upgraded did not change.`);
         return;
       }
       logger.log(`Transaction confirmed: ${transaction_hash}`);
