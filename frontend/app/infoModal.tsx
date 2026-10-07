@@ -23,10 +23,10 @@ export const InfoModal: FC<ModalProps> = ({ isOpen, setIsOpen }) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Your private key will not be saved!</AlertDialogTitle>
           <AlertDialogDescription className="text-justify">
-            The private key will not leave your computer. It is only used to sign a transaction locally in this website.
-            And is never sent to our servers or transmited over the internet
+            Your private key never leaves your computer. It is only used on this page to sign the upgrade transaction,
+            and it is never sent to our servers or over the internet.
             <br />
-            Please double check that this is the correct URL and that you are not being phished.
+            Please check that you are on security.argent.xyz and not on a phishing site.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

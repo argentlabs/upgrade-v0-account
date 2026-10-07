@@ -1,6 +1,4 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+// Joins class names, skipping empty values.
+export function cn(...classNames: Array<string | false | null | undefined>): string {
+  return classNames.filter(Boolean).join(" ");
 }

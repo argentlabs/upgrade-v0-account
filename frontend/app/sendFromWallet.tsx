@@ -51,6 +51,8 @@ async function accountSnapshot(accountAddress: string): Promise<string> {
   return `${num.toHex(classHash)}:${num.toHex(implementation)}`;
 }
 
+export const upgradeCompleteMessage = "Your account is upgraded.";
+
 // Sends a prepared call (for example the step that upgrades an old account) from another account the user
 // controls in a browser wallet. The meta-transaction helper returns a failing inner call as data instead of
 // reverting, so a confirmed transaction only counts once the account being upgraded has actually changed.
@@ -189,7 +191,15 @@ export const SendFromWallet = ({
       {phase === "confirming" && <p className="text-sm">Waiting for the transaction to be confirmed...</p>}
       {phase === "done" && (
         <p className="text-sm font-medium">
-          Confirmed. Click &quot;Upgrade Account&quot; again to continue with the next step.
+          {/* The meta-transaction only reaches v0.2.3.1; the account itself then sends the final upgrade. */}
+          {call.entrypoint === "execute_meta_tx_v0" ? (
+            <>
+              Confirmed. Make sure the account that you&apos;re trying to upgrade has enough STRK and then click
+              &quot;Upgrade Account&quot;.
+            </>
+          ) : (
+            upgradeCompleteMessage
+          )}
         </p>
       )}
       {phase === "error" && (

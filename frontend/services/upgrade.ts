@@ -124,7 +124,7 @@ export async function verifyAccountOwnerAndGuardian(
   const { abi } = await provider.getClassByHash(implementationClassHash);
   const accountContract = new Contract({ abi, address: accountAddress, providerOrAccount: provider });
 
-  logger.log("keyPair.pubKey", keyPair.publicKey);
+  logger.log("keyPair.pubKey", num.toHex(keyPair.publicKey));
 
   let currentSigner: string;
   let currentGuardian: string;
@@ -152,8 +152,8 @@ export async function verifyAccountOwnerAndGuardian(
       throw new Error("Unsupported version for verification of owner and guardian");
   }
 
-  logger.log("currentSigner", num.toBigInt(currentSigner));
-  logger.log("currentGuardian", num.toBigInt(currentGuardian));
+  logger.log("currentSigner", num.toHex(currentSigner));
+  logger.log("currentGuardian", num.toHex(currentGuardian));
   if (num.toBigInt(currentSigner) !== keyPair.publicKey) {
     throw new Error("Signer doesn't match private key");
   }

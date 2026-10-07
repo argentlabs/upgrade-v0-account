@@ -16,9 +16,6 @@ import {
   ETransactionVersion,
 } from "starknet";
 
-import dotenv from "dotenv";
-dotenv.config({ override: true });
-
 // Keyless public mainnet endpoints that serve RPC spec 0.10 and allow browser (CORS) requests.
 // The page used to depend on a single provider and broke for everyone when it was discontinued,
 // so requests fail over to the next endpoint when one is down.

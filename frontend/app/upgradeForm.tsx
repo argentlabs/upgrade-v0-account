@@ -5,7 +5,6 @@ import toast, { Toaster } from "react-hot-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { CiCircleInfo } from "react-icons/ci";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -13,12 +12,19 @@ import { Input } from "@/components/ui/input";
 import { Call } from "starknet";
 
 import { InfoModal } from "./infoModal";
-import { SendFromWallet } from "./sendFromWallet";
-import { upgradeOldContract } from "@/services";
+import { SendFromWallet, upgradeCompleteMessage } from "./sendFromWallet";
+import { provider, upgradeOldContract } from "@/services";
+
+// A Starknet address or private key: "0x" and up to 64 hex characters (leading zeros may be left out).
+// Surrounding spaces from copy-pasting are removed before checking.
+const starknetHexValue = z
+  .string()
+  .trim()
+  .regex(/^0x[0-9a-fA-F]{1,64}$/, "Must be 0x followed by up to 64 hex characters");
 
 const formSchema = z.object({
-  address: z.string().startsWith("0x").min(50).max(80),
-  privateKey: z.string().startsWith("0x").min(50).max(80),
+  address: starknetHexValue,
+  privateKey: starknetHexValue,
 });
 
 const UpgradeForm = () => {
@@ -70,6 +76,24 @@ const UpgradeForm = () => {
     },
   });
 
+  // The step the page sends itself is always the last one, so its confirmation completes the upgrade.
+  const reportFinalStep = async (transactionHash: string) => {
+    try {
+      const receipt = await provider.waitForTransaction(transactionHash);
+      if (receipt.isSuccess()) {
+        logger.log(`Transaction confirmed: ${transactionHash}`);
+        toast.success(<p className="text-sm">{upgradeCompleteMessage}</p>, { duration: Infinity });
+      } else {
+        logger.log(`Transaction ${transactionHash} did not succeed: ${JSON.stringify(receipt.value)}`);
+        toast.error(<p className="text-sm">Something went wrong. Please share the logs below with us.</p>, {
+          duration: Infinity,
+        });
+      }
+    } catch (error) {
+      logger.log(`Waiting for transaction ${transactionHash} failed: ${error}`);
+    }
+  };
+
   const upgradeButtonSubmit = async (values: z.infer<typeof formSchema>) => {
     toast.dismiss();
     setLogs(["Starting upgrade process..."]);
@@ -77,8 +101,12 @@ const UpgradeForm = () => {
     setIsUpgrading(true);
 
     const upgrade = upgradeOldContract(logger, values.address, values.privateKey);
+    // Stay locked until a transaction the page sent itself is confirmed, so it cannot be sent twice.
     upgrade.then(
-      () => setIsUpgrading(false),
+      (result) => {
+        if (typeof result === "string") reportFinalStep(result).finally(() => setIsUpgrading(false));
+        else setIsUpgrading(false);
+      },
       () => setIsUpgrading(false),
     );
     toast.promise(
@@ -93,7 +121,7 @@ const UpgradeForm = () => {
             const transactionHash = transactionHashOrCall;
             return (
               <a href={`https://voyager.online/tx/${transactionHash}`} target="_blank" rel="noopener noreferrer">
-                Transaction successful! Click here to view the transaction.
+                Transaction sent. Click here to view the transaction.
               </a>
             );
           } else {
@@ -108,7 +136,7 @@ const UpgradeForm = () => {
         },
         error: (err) => {
           logger.log(err);
-          return <p className="text-sm">${err.message}</p>;
+          return <p className="text-sm">{err.message}</p>;
         },
       },
       { duration: Infinity },
@@ -129,7 +157,7 @@ const UpgradeForm = () => {
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-lg font-medium">Account Address</FormLabel>
+                  <FormLabel className="text-lg font-medium">Starknet Address</FormLabel>
                   <FormControl>
                     <Input placeholder="account address" {...field} name={undefined} disabled={isFormLocked} />
                   </FormControl>
@@ -144,8 +172,24 @@ const UpgradeForm = () => {
                 <FormItem className="mt-4">
                   <div className="flex items-center">
                     <FormLabel className="text-lg font-medium mr-2">Private Key</FormLabel>
-                    <button type="button" onClick={() => setIsOpen(true)} className="mt-1">
-                      <CiCircleInfo />
+                    <button
+                      type="button"
+                      onClick={() => setIsOpen(true)}
+                      className="mt-1"
+                      aria-label="About the private key"
+                    >
+                      <svg
+                        width="1em"
+                        height="1em"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <circle cx="12" cy="12" r="9.5" />
+                        <path d="M12 11v6" strokeLinecap="round" />
+                        <circle cx="12" cy="7.75" r="0.75" fill="currentColor" stroke="none" />
+                      </svg>
                     </button>
                   </div>
                   <FormControl>

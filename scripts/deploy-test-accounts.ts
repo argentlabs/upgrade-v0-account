@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import { Account, ETransactionVersion, RpcProvider, TransactionType, num, stark } from "starknet";
 import {
   deployOldAccount_v0_2_0_proxy,
@@ -22,6 +23,8 @@ import {
   v0_3_1_implementationClassHash,
   v0_4_0_implementationClassHash,
 } from "../frontend/services";
+
+dotenv.config({ override: true });
 
 const privateKey = process.env.PRIVATE_KEY!;
 const deployerAddress = process.env.ADDRESS!;
