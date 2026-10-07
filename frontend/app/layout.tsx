@@ -7,8 +7,8 @@ import readyLogo from "@/assets/ready-logo.png";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Upgrade Deprecated Account",
-  description: "Upgrade deprecated Ready accounts",
+  title: "Upgrade Deprecated Starknet Account",
+  description: "Upgrade deprecated Ready accounts on Starknet",
 };
 
 const Navbar = () => (
