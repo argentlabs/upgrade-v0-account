@@ -11,6 +11,7 @@ import {
   v2hash,
   stark,
   Call,
+  TransactionType,
 } from "starknet";
 import {
   provider,
@@ -338,6 +339,45 @@ export async function upgradeFromV0_2(
   logPreparedCall(logger, upgrade_0_2_3_1_call);
 
   return upgrade_0_2_3_1_call;
+}
+
+// Sends a prepared call (the meta-transaction or outside-execution step) from another funded account.
+// The fee is not estimated: an estimate runs with the query transaction version, which execute_meta_tx_v0 passes to
+// the old account, so the inner v0 signature is rejected and the estimate fails. A simulation runs with the real
+// version, so the resource bounds come from it instead.
+export async function sendPreparedCall(
+  logger: ILogger,
+  accountAddress: string,
+  relayerAddress: string,
+  relayerPrivateKey: string,
+  call: Call,
+): Promise<string> {
+  const relayer = new Account({ provider, address: relayerAddress, signer: relayerPrivateKey });
+  const [simulation] = await relayer.simulateTransaction([{ type: TransactionType.INVOKE, payload: [call] }]);
+  const trace = simulation.transaction_trace as any;
+  const revertReason = trace.execute_invocation?.revert_reason;
+  if (revertReason) {
+    throw new Error(`Simulating the call from ${relayerAddress} reverted: ${revertReason}`);
+  }
+  const stateDiff = trace.state_diff ?? {};
+  const changesAccount =
+    (stateDiff.storage_diffs ?? []).some(
+      (entry: any) => num.toBigInt(entry.address) === num.toBigInt(accountAddress),
+    ) ||
+    (stateDiff.replaced_classes ?? []).some(
+      (entry: any) => num.toBigInt(entry.contract_address) === num.toBigInt(accountAddress),
+    );
+  if (!changesAccount) {
+    throw new Error("Simulating the call does not change the account being upgraded. It may already have been sent.");
+  }
+
+  const { transaction_hash } = await relayer.execute([call], { resourceBounds: simulation.resourceBounds });
+  logger.log("transaction hash", transaction_hash);
+  const receipt = await provider.waitForTransaction(transaction_hash);
+  if (!receipt.isSuccess()) {
+    throw new Error(`Transaction ${transaction_hash} did not succeed: ${JSON.stringify(receipt.value)}`);
+  }
+  return transaction_hash;
 }
 
 // Describes a call that another funded account has to send.
